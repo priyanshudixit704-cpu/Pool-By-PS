@@ -1,0 +1,17 @@
+package com.example.data.local.daos
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import com.example.data.local.entities.AdminAuditLogEntity
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface AdminAuditLogDao {
+    @Query("SELECT * FROM admin_audit_logs ORDER BY createdAt DESC")
+    fun getAllAuditLogs(): Flow<List<AdminAuditLogEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAuditLog(log: AdminAuditLogEntity)
+}

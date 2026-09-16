@@ -1,0 +1,6 @@
+{
+  "name": "8 Ball Pool",
+  "description": "Mobile-first 8 Ball Pool multiplayer game with playable physics, rooms, matchmaking, invitations, virtual coin ledger, and admin management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
