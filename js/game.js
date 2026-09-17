@@ -1,7 +1,80 @@
 // ==========================================
-// 8 BALL POOL - GAME ENGINE & PHYSICS
+// 8 BALL POOL - ADVANCED GAME ENGINE & PHYSICS
 // Professional Horizontal Landscape Pool Game
 // ==========================================
+
+// Web Audio Procedural Sound Effects Engine (No external sound files required)
+let poolAudioCtx = null;
+function getPoolAudioCtx() {
+  if (!poolAudioCtx) {
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioContextClass) poolAudioCtx = new AudioContextClass();
+    } catch (e) {}
+  }
+  if (poolAudioCtx && poolAudioCtx.state === "suspended") {
+    poolAudioCtx.resume().catch(() => {});
+  }
+  return poolAudioCtx;
+}
+
+function playPoolSound(type, volume = 0.5) {
+  try {
+    const ctx = getPoolAudioCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    if (type === "strike") {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(360, now);
+      osc.frequency.exponentialRampToValueAtTime(70, now + 0.08);
+      gain.gain.setValueAtTime(Math.min(0.9, volume * 0.8), now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.08);
+    } else if (type === "hit") {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(520 + Math.random() * 80, now);
+      osc.frequency.exponentialRampToValueAtTime(160, now + 0.05);
+      gain.gain.setValueAtTime(Math.min(0.8, volume * 0.7), now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.05);
+    } else if (type === "cushion") {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(170, now);
+      osc.frequency.exponentialRampToValueAtTime(65, now + 0.09);
+      gain.gain.setValueAtTime(Math.min(0.6, volume * 0.5), now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.09);
+    } else if (type === "pocket") {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(190, now);
+      osc.frequency.exponentialRampToValueAtTime(45, now + 0.22);
+      gain.gain.setValueAtTime(volume * 0.9, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.22);
+    }
+  } catch (e) {}
+}
 
 function renderGameView() {
   const container = document.getElementById("main-view");
@@ -9,19 +82,43 @@ function renderGameView() {
   const appContainer = document.getElementById("app-container");
   if (appContainer) appContainer.classList.add("in-game");
 
-  const p1 = currentRoom.players[0];
-  const p2 = currentRoom.players[1];
+  // Ensure currentRoom is available
+  if (!currentRoom) {
+    currentRoom = getStorage("current_room", null);
+  }
+  if (!currentRoom) {
+    currentRoom = {
+      roomId: "PRACTICE-" + Math.random().toString(36).substring(2, 6).toUpperCase(),
+      hostPlayerId: currentUser ? currentUser.playerId : "8BP-104582",
+      hostUsername: currentUser ? currentUser.username : "Player",
+      mode: "practice",
+      entryAmount: 0,
+      durationMinutes: 5,
+      players: [
+        { id: currentUser ? currentUser.playerId : "8BP-104582", name: currentUser ? currentUser.username : "Player", avatar: "avatar_2", team: 1 },
+        { id: "PRACTICE-BOT", name: "Practice Opponent", avatar: "avatar_3", team: 2 }
+      ]
+    };
+    setStorage("current_room", currentRoom);
+  }
+
+  const p1 = currentRoom.players[0] || { name: "Player 1", avatar: "avatar_1" };
+  const p2 = currentRoom.players[1] || { name: "Practice Bot", avatar: "avatar_2" };
   const is2v2 = currentRoom.mode === "2v2";
+  const isPractice = currentRoom.mode === "practice";
+
+  const p1Grad = typeof getAvatarGradient === "function" ? getAvatarGradient(p1.name) : "linear-gradient(135deg, #10b981, #047857)";
+  const p2Grad = typeof getAvatarGradient === "function" ? getAvatarGradient(p2.name) : "linear-gradient(135deg, #3b82f6, #1d4ed8)";
 
   container.innerHTML = `
-    <!-- ROTATE DEVICE NOTICE FOR PORTRAIT DEVICES -->
+    <!-- ROTATE DEVICE NOTICE FOR NARROW PORTRAIT PHONES -->
     <div id="rotate-prompt-overlay" style="display: none; position: fixed; inset: 0; background: rgba(4, 14, 10, 0.96); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px;">
-      <div class="rotate-phone-icon">📱</div>
+      <div class="rotate-phone-icon" style="font-size: 44px; animation: bounce 1.5s infinite;">📱</div>
       <h2 class="gold-title" style="font-size: 20px; margin-top: 16px; margin-bottom: 8px;">ROTATE TO LANDSCAPE</h2>
       <p style="color: var(--text-secondary); font-size: 13px; max-width: 320px; line-height: 1.5;">
         Please rotate your phone horizontally (landscape) for the full 8 Ball Pool experience.
       </p>
-      <button id="btn-force-landscape" class="btn btn-gold btn-sm" style="margin-top: 20px; font-weight: 800;">
+      <button id="btn-force-landscape" class="btn btn-gold btn-sm" style="margin-top: 20px; font-weight: 800; padding: 10px 20px;">
         CONTINUE IN HORIZONTAL FIT 🔄
       </button>
     </div>
@@ -30,33 +127,35 @@ function renderGameView() {
     <div id="game-arena-wrapper" style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; position: relative;">
       
       <!-- TOP HUD: PLAYERS, SCORE & TIMERS -->
-      <div id="game-top-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(9, 23, 17, 0.95); border-bottom: 1.5px solid var(--bg-card-border); z-index: 10;">
+      <div id="game-top-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 14px; background: rgba(9, 23, 17, 0.95); border-bottom: 1.5px solid var(--bg-card-border); z-index: 10;">
         
         <!-- P1 / Team 1 HUD -->
         <div id="hud-p1" style="display: flex; align-items: center; gap: 8px; transition: all 0.3s ease;">
-          <div class="avatar avatar-sm" style="background: ${getAvatarGradient(p1.name)}; position: relative; border-color: var(--gold);">
-            ${p1.name.slice(0, 2).toUpperCase()}
+          <div class="avatar avatar-sm" style="background: ${p1Grad}; position: relative; border-color: var(--gold);">
+            ${(p1.name || "P1").slice(0, 2).toUpperCase()}
             <div id="p1-turn-dot" style="position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; border-radius: 50%; background: var(--emerald); border: 2px solid #000;"></div>
           </div>
           <div>
             <div style="display: flex; align-items: center; gap: 6px;">
               <strong style="font-size: 13px; color: #fff;">${p1.name}</strong>
-              <span id="p1-team-badge" style="font-size: 9px; padding: 1px 5px; border-radius: 6px; background: rgba(255,213,79,0.15); color: var(--gold);">${is2v2 ? 'TEAM 1' : 'P1'}</span>
+              <span id="p1-team-badge" style="font-size: 9px; padding: 1px 5px; border-radius: 6px; background: rgba(255,213,79,0.15); color: var(--gold); font-weight: 800;">
+                ${isPractice ? 'SOLO' : (is2v2 ? 'TEAM 1' : 'P1')}
+              </span>
             </div>
-            <p id="p1-group" style="font-size: 10px; color: var(--gold); font-weight: 800; letter-spacing: 0.5px;">OPEN TABLE</p>
+            <p id="p1-group" style="font-size: 10px; color: var(--gold); font-weight: 800; letter-spacing: 0.5px; margin: 0;">OPEN TABLE</p>
           </div>
         </div>
 
         <!-- CENTER MATCH STATUS & TURN BANNER -->
         <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
           <div id="turn-banner" style="background: #144026; border: 1.5px solid var(--gold); padding: 3px 14px; border-radius: 14px; font-size: 11px; font-weight: 800; color: var(--gold); letter-spacing: 0.8px; box-shadow: 0 0 10px rgba(255,213,79,0.25);">
-            YOUR TURN
+            ${isPractice ? 'PRACTICE MODE • YOUR TURN' : 'YOUR TURN'}
           </div>
           <div style="display: flex; align-items: center; gap: 8px; margin-top: 1px;">
             <span id="shot-result-pill" style="display: none; padding: 1px 8px; border-radius: 8px; font-size: 10px; font-weight: 800;"></span>
             <div id="match-timer-badge" style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--gold); font-weight: 800;">
               <span>⏱️</span>
-              <span id="game-timer" style="font-variant-numeric: tabular-nums;">02:00</span>
+              <span id="game-timer" style="font-variant-numeric: tabular-nums;">05:00</span>
             </div>
           </div>
         </div>
@@ -65,13 +164,15 @@ function renderGameView() {
         <div id="hud-p2" style="display: flex; align-items: center; gap: 8px; opacity: 0.5; transition: all 0.3s ease; text-align: right;">
           <div>
             <div style="display: flex; align-items: center; gap: 6px; justify-content: flex-end;">
-              <span id="p2-team-badge" style="font-size: 9px; padding: 1px 5px; border-radius: 6px; background: rgba(255,255,255,0.1); color: var(--text-secondary);">${is2v2 ? 'TEAM 2' : 'P2'}</span>
+              <span id="p2-team-badge" style="font-size: 9px; padding: 1px 5px; border-radius: 6px; background: rgba(255,255,255,0.1); color: var(--text-secondary); font-weight: 800;">
+                ${isPractice ? 'PRACTICE' : (is2v2 ? 'TEAM 2' : 'P2')}
+              </span>
               <strong style="font-size: 13px; color: #fff;">${p2.name}</strong>
             </div>
-            <p id="p2-group" style="font-size: 10px; color: var(--gold); font-weight: 800; letter-spacing: 0.5px;">OPEN TABLE</p>
+            <p id="p2-group" style="font-size: 10px; color: var(--gold); font-weight: 800; letter-spacing: 0.5px; margin: 0;">OPEN TABLE</p>
           </div>
-          <div class="avatar avatar-sm" style="background: ${getAvatarGradient(p2.name)}; position: relative; border-color: var(--bg-card-border);">
-            ${p2.name.slice(0, 2).toUpperCase()}
+          <div class="avatar avatar-sm" style="background: ${p2Grad}; position: relative; border-color: var(--bg-card-border);">
+            ${(p2.name || "P2").slice(0, 2).toUpperCase()}
             <div id="p2-turn-dot" style="position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; border-radius: 50%; background: #6b7280; border: 2px solid #000;"></div>
           </div>
         </div>
@@ -79,24 +180,24 @@ function renderGameView() {
       </div>
 
       <!-- MAIN HORIZONTAL POOL TABLE & CONTROLS -->
-      <div id="table-canvas-container" style="flex: 1; display: flex; align-items: center; justify-content: center; position: relative; padding: 4px 8px; gap: 10px;">
+      <div id="table-canvas-container" style="flex: 1; display: flex; align-items: center; justify-content: center; position: relative; padding: 6px 12px; gap: 12px; min-height: 0;">
         
         <!-- Table Canvas Wrapper (Maintains Strict 2:1 Landscape Aspect Ratio) -->
-        <div id="pool-canvas-wrapper" style="position: relative; max-width: 100%; max-height: calc(100vh - 110px); aspect-ratio: 2 / 1; display: flex; align-items: center; justify-content: center;">
+        <div id="pool-canvas-wrapper" style="position: relative; max-width: 100%; max-height: calc(100vh - 116px); aspect-ratio: 2 / 1; display: flex; align-items: center; justify-content: center; flex: 1;">
           <canvas id="pool-canvas" width="840" height="420" style="width: 100%; height: 100%; display: block; border-radius: 14px; box-shadow: 0 12px 36px rgba(0,0,0,0.9); touch-action: none; cursor: crosshair;"></canvas>
         </div>
 
         <!-- Integrated Power Meter Column -->
-        <div id="power-control-dock" style="display: flex; flex-direction: column; align-items: center; justify-content: space-between; background: #0c1e16; border: 1.5px solid var(--bg-card-border); border-radius: 14px; padding: 8px 6px; width: 56px; height: 85%; max-height: 380px;">
-          <span style="font-size: 10px; font-weight: 800; color: var(--gold);">PWR</span>
-          <span id="power-zone-label" style="font-size: 9px; font-weight: 800; color: #10b981;">MED</span>
-          <span id="power-display" style="font-size: 11px; font-weight: 800; color: #fff;">50%</span>
+        <div id="power-control-dock" style="display: flex; flex-direction: column; align-items: center; justify-content: space-between; background: #0c1e16; border: 1.5px solid var(--bg-card-border); border-radius: 14px; padding: 10px 8px; width: 62px; height: 90%; max-height: 380px;">
+          <span style="font-size: 10px; font-weight: 800; color: var(--gold); letter-spacing: 0.5px;">POWER</span>
+          <span id="power-zone-label" style="font-size: 10px; font-weight: 900; color: #10b981;">MED</span>
+          <span id="power-display" style="font-size: 12px; font-weight: 900; color: #fff;">50%</span>
 
           <!-- Power Slider -->
-          <input type="range" id="power-slider" min="10" max="100" value="50" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; width: 24px; height: 180px; cursor: pointer; accent-color: var(--gold);" />
+          <input type="range" id="power-slider" min="10" max="100" value="50" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; width: 28px; height: 170px; cursor: pointer; accent-color: var(--gold);" />
 
           <!-- Shoot Button -->
-          <button id="btn-shoot-ball" class="btn btn-gold" style="width: 44px; height: 44px; border-radius: 50%; padding: 0; font-size: 20px; box-shadow: 0 0 14px rgba(255,213,79,0.5); border: 2px solid #fff;" title="Shoot">
+          <button id="btn-shoot-ball" class="btn btn-gold" style="width: 48px; height: 48px; border-radius: 50%; padding: 0; font-size: 22px; box-shadow: 0 0 14px rgba(255,213,79,0.5); border: 2px solid #fff; display: flex; align-items: center; justify-content: center;" title="Release / Shoot">
             ⚡
           </button>
         </div>
@@ -104,19 +205,21 @@ function renderGameView() {
       </div>
 
       <!-- BOTTOM UTILITY BAR -->
-      <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 14px; background: rgba(6, 21, 15, 0.95); border-top: 1px solid var(--bg-card-border); font-size: 11px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 14px; background: rgba(6, 21, 15, 0.95); border-top: 1px solid var(--bg-card-border); font-size: 11px;">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <button id="btn-leave-match" class="btn btn-dark btn-sm" style="padding: 3px 10px; font-size: 11px; color: var(--loss-red);">✕ Forfeit</button>
+          <button id="btn-leave-match" class="btn btn-dark btn-sm" style="padding: 4px 12px; font-size: 11px; color: var(--loss-red); font-weight: 800;">
+            ✕ ${isPractice ? 'Exit Practice' : 'Forfeit'}
+          </button>
           <span id="game-status-ticker" style="color: var(--emerald); font-weight: 700; font-size: 11px;">
-            Touch table to aim • Drag & release or press ⚡ to shoot
+            Touch & drag table to aim • Pull cue stick back & release or tap ⚡ to shoot
           </span>
         </div>
         
         <!-- Aim Fine Adjustment -->
         <div style="display: flex; align-items: center; gap: 6px;">
-          <button id="btn-fine-left" class="btn btn-dark btn-sm" style="padding: 3px 8px; font-size: 11px; font-weight: 800;">‹ -1°</button>
-          <button id="btn-fine-right" class="btn btn-dark btn-sm" style="padding: 3px 8px; font-size: 11px; font-weight: 800;">+1° ›</button>
-          <span style="color: var(--text-secondary); margin-left: 4px;">Angle: <strong id="angle-degrees" style="color: var(--gold);">0°</strong></span>
+          <button id="btn-fine-left" class="btn btn-dark btn-sm" style="padding: 4px 10px; font-size: 11px; font-weight: 800;">‹ -1°</button>
+          <button id="btn-fine-right" class="btn btn-dark btn-sm" style="padding: 4px 10px; font-size: 11px; font-weight: 800;">+1° ›</button>
+          <span style="color: var(--text-secondary); margin-left: 4px; font-size: 11px;">Angle: <strong id="angle-degrees" style="color: var(--gold);">0°</strong></span>
         </div>
       </div>
 
@@ -163,6 +266,8 @@ function initGameEngine() {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
 
+  const isPractice = currentRoom.mode === "practice";
+
   // Register in active_games table
   const activeGames = getStorage("active_games", []);
   const existingIdx = activeGames.findIndex(g => g.roomId === currentRoom.roomId);
@@ -201,15 +306,15 @@ function initGameEngine() {
 
   // Six Pockets (Horizontal orientation)
   const pockets = [
-    { x: playMinX + 4, y: playMinY + 4, r: 24, name: "TOP_LEFT" },
-    { x: width / 2, y: playMinY - 2, r: 21, name: "TOP_CENTER" },
-    { x: playMaxX - 4, y: playMinY + 4, r: 24, name: "TOP_RIGHT" },
-    { x: playMinX + 4, y: playMaxY - 4, r: 24, name: "BOTTOM_LEFT" },
-    { x: width / 2, y: playMaxY + 2, r: 21, name: "BOTTOM_CENTER" },
-    { x: playMaxX - 4, y: playMaxY - 4, r: 24, name: "BOTTOM_RIGHT" }
+    { x: playMinX + 2, y: playMinY + 2, r: 24, name: "TOP_LEFT" },
+    { x: width / 2, y: playMinY - 3, r: 21, name: "TOP_CENTER" },
+    { x: playMaxX - 2, y: playMinY + 2, r: 24, name: "TOP_RIGHT" },
+    { x: playMinX + 2, y: playMaxY - 2, r: 24, name: "BOTTOM_LEFT" },
+    { x: width / 2, y: playMaxY + 3, r: 21, name: "BOTTOM_CENTER" },
+    { x: playMaxX - 2, y: playMaxY - 2, r: 24, name: "BOTTOM_RIGHT" }
   ];
 
-  // Standard Ball Configs (Requirement 14)
+  // Standard Ball Configs (Official 8-ball colors)
   const ballRadius = 11.5;
   const BALL_CONFIGS = [
     { id: 0, name: "Cue Ball", color: "#F9FAFB", type: "CUE" },
@@ -303,7 +408,7 @@ function initGameEngine() {
   let sunkStripes = [];
   let p1Group = "OPEN";
   let p2Group = "OPEN";
-  let timeRemaining = currentRoom.durationMinutes * 60;
+  let timeRemaining = (currentRoom.durationMinutes || 5) * 60;
 
   // Shot metrics
   let firstContactBall = null;
@@ -311,6 +416,10 @@ function initGameEngine() {
   let scratchedThisShot = false;
   let stickStrikeOffset = 0;
   let isStrikingAnimation = false;
+
+  // Touch tracking
+  let isTouching = false;
+  let isPullingCue = false;
 
   // Match countdown timer
   const timerInterval = setInterval(() => {
@@ -327,23 +436,23 @@ function initGameEngine() {
     }
     if (timeRemaining <= 0) {
       clearInterval(timerInterval);
-      finishMatch(currentRoom.players[0], "Match timer expired! Victory on score.");
+      if (isPractice) {
+        showToast("Practice session concluded!");
+        navigateTo("/play");
+      } else {
+        finishMatch(currentRoom.players[0], "Match timer expired! Victory on score.");
+      }
     }
   }, 1000);
 
-  // Dynamic Aim Angle Calculation from Canvas Touch/Mouse
-  function updateAimFromEvent(e) {
-    if (isMoving || gameOver || turnIndex !== 0) return;
+  // Helper to convert screen touch/mouse to canvas logical coords (840x420)
+  function getCanvasCoords(e) {
     const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : (e.changedTouches && e.changedTouches.length > 0 ? e.changedTouches[0].clientX : e.clientX);
+    const clientY = e.touches && e.touches.length > 0 ? e.touches[0].clientY : (e.changedTouches && e.changedTouches.length > 0 ? e.changedTouches[0].clientY : e.clientY);
     const touchX = (clientX - rect.left) * (width / rect.width);
     const touchY = (clientY - rect.top) * (height / rect.height);
-    const cue = balls[0];
-    if (cue && !cue.pocketed) {
-      aimAngle = Math.atan2(touchY - cue.y, touchX - cue.x);
-      updateAngleDisplay();
-    }
+    return { x: touchX, y: touchY };
   }
 
   function updateAngleDisplay() {
@@ -352,58 +461,143 @@ function initGameEngine() {
     if (el) el.textContent = `${deg}°`;
   }
 
-  canvas.addEventListener("mousedown", updateAimFromEvent);
-  canvas.addEventListener("mousemove", (e) => { if (e.buttons === 1) updateAimFromEvent(e); });
-  canvas.addEventListener("touchstart", (e) => { e.preventDefault(); updateAimFromEvent(e); }, { passive: false });
-  canvas.addEventListener("touchmove", (e) => { e.preventDefault(); updateAimFromEvent(e); }, { passive: false });
-
-  // Fine-tuning angle buttons
-  document.getElementById("btn-fine-left").onclick = () => {
-    if (!isMoving && !gameOver) {
-      aimAngle -= (Math.PI / 180);
-      updateAngleDisplay();
-    }
-  };
-  document.getElementById("btn-fine-right").onclick = () => {
-    if (!isMoving && !gameOver) {
-      aimAngle += (Math.PI / 180);
-      updateAngleDisplay();
-    }
-  };
-
   // Power controls
   const slider = document.getElementById("power-slider");
   const powerDisp = document.getElementById("power-display");
   const powerZoneLabel = document.getElementById("power-zone-label");
 
   function updatePowerDisplay(val) {
-    power = val / 100;
-    powerDisp.textContent = `${val}%`;
-    if (val < 35) {
-      powerZoneLabel.textContent = "LOW";
-      powerZoneLabel.style.color = "#10b981";
-    } else if (val < 70) {
-      powerZoneLabel.textContent = "MED";
-      powerZoneLabel.style.color = "#facc15";
-    } else {
-      powerZoneLabel.textContent = "HIGH";
-      powerZoneLabel.style.color = "#ef4444";
+    power = Math.max(0.1, Math.min(1.0, val / 100));
+    const pct = Math.round(power * 100);
+    if (powerDisp) powerDisp.textContent = `${pct}%`;
+    if (slider) slider.value = pct;
+    if (powerZoneLabel) {
+      if (pct < 35) {
+        powerZoneLabel.textContent = "LOW";
+        powerZoneLabel.style.color = "#10b981";
+      } else if (pct < 70) {
+        powerZoneLabel.textContent = "MED";
+        powerZoneLabel.style.color = "#facc15";
+      } else {
+        powerZoneLabel.textContent = "HIGH";
+        powerZoneLabel.style.color = "#ef4444";
+      }
     }
   }
 
-  slider.oninput = () => updatePowerDisplay(parseInt(slider.value));
-  updatePowerDisplay(50);
+  if (slider) {
+    slider.oninput = () => updatePowerDisplay(parseInt(slider.value, 10));
+    updatePowerDisplay(50);
+  }
 
-  // Shoot button
-  document.getElementById("btn-shoot-ball").onclick = () => {
-    if (!isMoving && !gameOver && turnIndex === 0) {
-      executeShot(power);
+  // Fine-tuning angle buttons
+  const btnFineLeft = document.getElementById("btn-fine-left");
+  if (btnFineLeft) {
+    btnFineLeft.onclick = () => {
+      if (!isMoving && !gameOver) {
+        aimAngle -= (Math.PI / 180);
+        updateAngleDisplay();
+      }
+    };
+  }
+  const btnFineRight = document.getElementById("btn-fine-right");
+  if (btnFineRight) {
+    btnFineRight.onclick = () => {
+      if (!isMoving && !gameOver) {
+        aimAngle += (Math.PI / 180);
+        updateAngleDisplay();
+      }
+    };
+  }
+
+  // Touch Interaction: Aiming & Pull-Back Cue Shooting
+  function handleTouchStart(e) {
+    if (isMoving || gameOver || (turnIndex !== 0 && !isPractice)) return;
+    const pos = getCanvasCoords(e);
+    const cue = balls[0];
+    if (!cue || cue.pocketed) return;
+
+    isTouching = true;
+    const dx = pos.x - cue.x;
+    const dy = pos.y - cue.y;
+
+    // Vector along backwards cue stick line (opposite to aimAngle)
+    const stickDirX = -Math.cos(aimAngle);
+    const stickDirY = -Math.sin(aimAngle);
+    const projAlongStick = dx * stickDirX + dy * stickDirY;
+    const perpDist = Math.abs(dx * (-stickDirY) + dy * stickDirX);
+
+    // If touching on or behind the cue stick, enter pull-back power mode
+    if (projAlongStick > 15 && projAlongStick < 260 && perpDist < 65) {
+      isPullingCue = true;
+      const pull = Math.min(1.0, Math.max(0.1, (projAlongStick - 20) / 120));
+      updatePowerDisplay(Math.round(pull * 100));
+    } else {
+      // Direct Aiming: Point aim towards touch location
+      isPullingCue = false;
+      aimAngle = Math.atan2(pos.y - cue.y, pos.x - cue.x);
+      updateAngleDisplay();
     }
-  };
+  }
+
+  function handleTouchMove(e) {
+    if (!isTouching || isMoving || gameOver || (turnIndex !== 0 && !isPractice)) return;
+    const pos = getCanvasCoords(e);
+    const cue = balls[0];
+    if (!cue || cue.pocketed) return;
+
+    const dx = pos.x - cue.x;
+    const dy = pos.y - cue.y;
+
+    if (isPullingCue) {
+      const stickDirX = -Math.cos(aimAngle);
+      const stickDirY = -Math.sin(aimAngle);
+      const projAlongStick = dx * stickDirX + dy * stickDirY;
+      const pull = Math.min(1.0, Math.max(0.1, (projAlongStick - 15) / 130));
+      updatePowerDisplay(Math.round(pull * 100));
+    } else {
+      // Rotate aim smoothly around cue ball
+      aimAngle = Math.atan2(pos.y - cue.y, pos.x - cue.x);
+      updateAngleDisplay();
+    }
+  }
+
+  function handleTouchEnd(e) {
+    if (!isTouching) return;
+    isTouching = false;
+    if (isPullingCue) {
+      isPullingCue = false;
+      // If user pulled back and released, fire the shot!
+      if (!isMoving && !gameOver && (turnIndex === 0 || isPractice) && power >= 0.15) {
+        executeShot(power);
+      }
+    }
+  }
+
+  canvas.addEventListener("mousedown", (e) => { handleTouchStart(e); });
+  canvas.addEventListener("mousemove", (e) => { if (e.buttons === 1) handleTouchMove(e); });
+  canvas.addEventListener("mouseup", (e) => { handleTouchEnd(e); });
+
+  canvas.addEventListener("touchstart", (e) => { e.preventDefault(); handleTouchStart(e); }, { passive: false });
+  canvas.addEventListener("touchmove", (e) => { e.preventDefault(); handleTouchMove(e); }, { passive: false });
+  canvas.addEventListener("touchend", (e) => { e.preventDefault(); handleTouchEnd(e); }, { passive: false });
+
+  // Shoot button on the right dock
+  const btnShoot = document.getElementById("btn-shoot-ball");
+  if (btnShoot) {
+    btnShoot.onclick = () => {
+      if (!isMoving && !gameOver && (turnIndex === 0 || isPractice)) {
+        executeShot(power);
+      }
+    };
+  }
 
   function executeShot(pwr) {
     const cue = balls[0];
     if (!cue || cue.pocketed) return;
+
+    // Play strike sound
+    playPoolSound("strike", pwr);
 
     // Cue strike animation
     isStrikingAnimation = true;
@@ -430,7 +624,7 @@ function initGameEngine() {
     const cue = balls[0];
     if (!cue || cue.pocketed) return null;
 
-    const maxDist = 550;
+    const maxDist = 580;
     let hitBall = null;
     let minT = maxDist;
 
@@ -473,8 +667,8 @@ function initGameEngine() {
       targetTrajectory = {
         startX: hitBall.x,
         startY: hitBall.y,
-        endX: hitBall.x + nx * 120,
-        endY: hitBall.y + ny * 120
+        endX: hitBall.x + nx * 130,
+        endY: hitBall.y + ny * 130
       };
 
       const tangentX = -ny;
@@ -483,8 +677,8 @@ function initGameEngine() {
       deflectedCueTrajectory = {
         startX: ghostCueX,
         startY: ghostCueY,
-        endX: ghostCueX + tangentX * Math.sign(dotTangent || 1) * 60,
-        endY: ghostCueY + tangentY * Math.sign(dotTangent || 1) * 60
+        endX: ghostCueX + tangentX * Math.sign(dotTangent || 1) * 70,
+        endY: ghostCueY + tangentY * Math.sign(dotTangent || 1) * 70
       };
     }
 
@@ -498,97 +692,145 @@ function initGameEngine() {
     };
   }
 
-  // Physics Simulation Loop (Continuous sub-stepping for smooth realistic feel)
+  // High-Precision Continuous Physics Simulation (5 sub-steps per frame)
   function updatePhysics() {
     let anyMoving = false;
     const friction = 0.988;
-    const stopSpeed = 0.12;
+    const stopSpeed = 0.10;
+    const subSteps = 5;
+    const subFriction = Math.pow(friction, 1 / subSteps);
 
-    for (let i = 0; i < balls.length; i++) {
-      const b = balls[i];
-      if (b.pocketed) continue;
+    for (let step = 0; step < subSteps; step++) {
+      for (let i = 0; i < balls.length; i++) {
+        const b = balls[i];
+        if (b.pocketed) continue;
 
-      if (b.sinking > 0) {
-        b.sinking += 0.06;
-        b.vx *= 0.4;
-        b.vy *= 0.4;
-        if (b.sinking >= 1) {
-          b.pocketed = true;
-          handlePocketedBall(b);
-        }
-        anyMoving = true;
-        continue;
-      }
-
-      b.x += b.vx;
-      b.y += b.vy;
-      b.vx *= friction;
-      b.vy *= friction;
-
-      const spd = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
-      if (spd < stopSpeed) {
-        b.vx = 0;
-        b.vy = 0;
-      } else {
-        anyMoving = true;
-      }
-
-      // Cushion collisions with restitution
-      if (b.x - b.r < playMinX) { b.x = playMinX + b.r; b.vx = -b.vx * 0.88; }
-      else if (b.x + b.r > playMaxX) { b.x = playMaxX - b.r; b.vx = -b.vx * 0.88; }
-
-      if (b.y - b.r < playMinY) { b.y = playMinY + b.r; b.vy = -b.vy * 0.88; }
-      else if (b.y + b.r > playMaxY) { b.y = playMaxY - b.r; b.vy = -b.vy * 0.88; }
-
-      // Pocket Entry Check
-      for (let p of pockets) {
-        const dx = b.x - p.x;
-        const dy = b.y - p.y;
-        if (Math.sqrt(dx * dx + dy * dy) < p.r + 4) {
-          b.sinking = 0.05;
-          anyMoving = true;
-          break;
-        }
-      }
-    }
-
-    // Ball-to-Ball Elastic Collisions
-    for (let i = 0; i < balls.length; i++) {
-      const b1 = balls[i];
-      if (b1.pocketed || b1.sinking > 0) continue;
-
-      for (let j = i + 1; j < balls.length; j++) {
-        const b2 = balls[j];
-        if (b2.pocketed || b2.sinking > 0) continue;
-
-        const dx = b2.x - b1.x;
-        const dy = b2.y - b1.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const minDist = b1.r + b2.r;
-
-        if (dist < minDist && dist > 0) {
-          if ((b1.id === 0 || b2.id === 0) && !firstContactBall) {
-            firstContactBall = b1.id === 0 ? b2 : b1;
+        if (b.sinking > 0) {
+          b.sinking += 0.07 / subSteps;
+          b.vx *= 0.85;
+          b.vy *= 0.85;
+          if (b.sinking >= 1) {
+            b.pocketed = true;
+            handlePocketedBall(b);
+            playPoolSound("pocket", 0.85);
           }
-
-          const overlap = 0.5 * (minDist - dist);
-          const nx = dx / dist;
-          const ny = dy / dist;
-
-          b1.x -= nx * overlap;
-          b1.y -= ny * overlap;
-          b2.x += nx * overlap;
-          b2.y += ny * overlap;
-
-          const kx = b1.vx - b2.vx;
-          const ky = b1.vy - b2.vy;
-          const impulse = nx * kx + ny * ky;
-
-          b1.vx -= impulse * nx * 0.96;
-          b1.vy -= impulse * ny * 0.96;
-          b2.vx += impulse * nx * 0.96;
-          b2.vy += impulse * ny * 0.96;
           anyMoving = true;
+          continue;
+        }
+
+        b.x += b.vx / subSteps;
+        b.y += b.vy / subSteps;
+        b.vx *= subFriction;
+        b.vy *= subFriction;
+
+        const spd = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+        if (spd < stopSpeed) {
+          b.vx = 0;
+          b.vy = 0;
+        } else {
+          anyMoving = true;
+        }
+
+        // Pocket Entry Check
+        for (let p of pockets) {
+          const dx = b.x - p.x;
+          const dy = b.y - p.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < p.r + 3) {
+            b.sinking = 0.05;
+            // Draw towards pocket center
+            b.vx += (p.x - b.x) * 0.15;
+            b.vy += (p.y - b.y) * 0.15;
+            anyMoving = true;
+            break;
+          }
+        }
+
+        if (b.sinking > 0) continue;
+
+        // Cushion Collisions (outside pocket openings)
+        const pocketOpening = 36;
+        const isNearTopPocket = Math.abs(b.x - (width / 2)) < pocketOpening || b.x < playMinX + pocketOpening || b.x > playMaxX - pocketOpening;
+        const isNearBottomPocket = Math.abs(b.x - (width / 2)) < pocketOpening || b.x < playMinX + pocketOpening || b.x > playMaxX - pocketOpening;
+        const isNearSidePocket = b.y < playMinY + pocketOpening || b.y > playMaxY - pocketOpening;
+
+        // Left Cushion
+        if (b.x - b.r < playMinX) {
+          if (!isNearSidePocket) {
+            b.x = playMinX + b.r;
+            b.vx = -b.vx * 0.88;
+            playPoolSound("cushion", Math.min(1, Math.abs(b.vx) / 8));
+          }
+        }
+        // Right Cushion
+        else if (b.x + b.r > playMaxX) {
+          if (!isNearSidePocket) {
+            b.x = playMaxX - b.r;
+            b.vx = -b.vx * 0.88;
+            playPoolSound("cushion", Math.min(1, Math.abs(b.vx) / 8));
+          }
+        }
+
+        // Top Cushion
+        if (b.y - b.r < playMinY) {
+          if (!isNearTopPocket) {
+            b.y = playMinY + b.r;
+            b.vy = -b.vy * 0.88;
+            playPoolSound("cushion", Math.min(1, Math.abs(b.vy) / 8));
+          }
+        }
+        // Bottom Cushion
+        else if (b.y + b.r > playMaxY) {
+          if (!isNearBottomPocket) {
+            b.y = playMaxY - b.r;
+            b.vy = -b.vy * 0.88;
+            playPoolSound("cushion", Math.min(1, Math.abs(b.vy) / 8));
+          }
+        }
+      }
+
+      // Ball-to-Ball Collisions
+      for (let i = 0; i < balls.length; i++) {
+        const b1 = balls[i];
+        if (b1.pocketed || b1.sinking > 0) continue;
+
+        for (let j = i + 1; j < balls.length; j++) {
+          const b2 = balls[j];
+          if (b2.pocketed || b2.sinking > 0) continue;
+
+          const dx = b2.x - b1.x;
+          const dy = b2.y - b1.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const minDist = b1.r + b2.r;
+
+          if (dist < minDist && dist > 0) {
+            if ((b1.id === 0 || b2.id === 0) && !firstContactBall) {
+              firstContactBall = b1.id === 0 ? b2 : b1;
+            }
+
+            const overlap = 0.5 * (minDist - dist);
+            const nx = dx / dist;
+            const ny = dy / dist;
+
+            b1.x -= nx * overlap;
+            b1.y -= ny * overlap;
+            b2.x += nx * overlap;
+            b2.y += ny * overlap;
+
+            const kx = b1.vx - b2.vx;
+            const ky = b1.vy - b2.vy;
+            const impulse = nx * kx + ny * ky;
+
+            if (impulse > 0) {
+              b1.vx -= impulse * nx * 0.97;
+              b1.vy -= impulse * ny * 0.97;
+              b2.vx += impulse * nx * 0.97;
+              b2.vy += impulse * ny * 0.97;
+
+              playPoolSound("hit", Math.min(1, impulse / 12));
+              anyMoving = true;
+            }
+          }
         }
       }
     }
@@ -634,12 +876,17 @@ function initGameEngine() {
       cue.y = height / 2;
       cue.vx = 0;
       cue.vy = 0;
-      statusMessage = "FOUL: Cue scratch! Opponent's turn.";
+      statusMessage = isPractice ? "CUE SCRATCH: Placed back on head string." : "FOUL: Cue scratch! Opponent's turn.";
     }
 
     // 2. 8-Ball Pocketed Check
     const eightPocketed = ballsPocketedThisShot.some(b => b.id === 8);
     if (eightPocketed) {
+      if (isPractice) {
+        showToast("🎱 8-Ball Potted! Reracking table...");
+        setTimeout(() => rackBalls(), 1000);
+        return;
+      }
       const ownCleared = ownGroup === "SOLIDS" ? sunkSolids.length >= 7 : (ownGroup === "STRIPES" ? sunkStripes.length >= 7 : false);
       if (ownCleared && !scratchedThisShot && !isFoul) {
         finishMatch(activePlayer, `8-BALL LEGAL WIN! ${activePlayer.name} takes the victory!`);
@@ -653,7 +900,7 @@ function initGameEngine() {
     // 3. Check for Miss (no ball contacted)
     if (!firstContactBall && !scratchedThisShot) {
       isMiss = true;
-      statusMessage = "MISS: No ball contacted. Opponent's turn.";
+      statusMessage = isPractice ? "MISS: No ball contacted." : "MISS: No ball contacted. Opponent's turn.";
     }
 
     // 4. Assign Groups on first valid pocket
@@ -674,8 +921,8 @@ function initGameEngine() {
       }
     }
 
-    // 5. Wrong Ball Contact Foul
-    if (!isFoul && !isMiss && ownGroup !== "OPEN" && firstContactBall) {
+    // 5. Wrong Ball Contact Foul (Only in 1v1 match play)
+    if (!isPractice && !isFoul && !isMiss && ownGroup !== "OPEN" && firstContactBall) {
       const ownCleared = ownGroup === "SOLIDS" ? sunkSolids.length >= 7 : sunkStripes.length >= 7;
       if (ownGroup === "SOLIDS" && firstContactBall.type === "STRIPE") {
         isFoul = true;
@@ -693,7 +940,7 @@ function initGameEngine() {
     // If player successfully pockets a valid ball: SAME PLAYER GETS ANOTHER TURN!
     if (!isFoul && !isMiss) {
       let legallyPocketed = false;
-      if (ownGroup === "OPEN") {
+      if (ownGroup === "OPEN" || isPractice) {
         legallyPocketed = ballsPocketedThisShot.some(b => b.id !== 0 && b.id !== 8);
       } else {
         legallyPocketed = ballsPocketedThisShot.some(b => b.type === (ownGroup === "SOLIDS" ? "SOLID" : "STRIPE"));
@@ -703,7 +950,7 @@ function initGameEngine() {
         continueTurn = true;
         statusMessage = `GOOD SHOT! ${activePlayer.name} CONTINUES`;
       } else {
-        statusMessage = `MISS: No ball pocketed. ${opponentPlayer.name}'S TURN`;
+        statusMessage = isPractice ? "MISS: No ball pocketed." : `MISS: No ball pocketed. ${opponentPlayer.name}'S TURN`;
       }
     }
 
@@ -731,6 +978,14 @@ function initGameEngine() {
       setTimeout(() => { if (pill) pill.style.display = "none"; }, 3000);
     }
 
+    // In Practice Mode: Player stays on turn to practice continuously!
+    if (isPractice) {
+      turnIndex = 0;
+      const banner = document.getElementById("turn-banner");
+      if (banner) banner.textContent = "PRACTICE MODE • YOUR TURN";
+      return;
+    }
+
     // Switch turn if didn't score
     if (!continueTurn) {
       turnIndex = turnIndex === 0 ? 1 : 0;
@@ -751,7 +1006,7 @@ function initGameEngine() {
     if (d1) d1.style.background = isP1Active ? "var(--emerald)" : "#6b7280";
     if (d2) d2.style.background = !isP1Active ? "var(--emerald)" : "#6b7280";
 
-    // Opponent Bot AI Turn Execution
+    // Opponent Bot AI Turn Execution (1v1 mode)
     if (turnIndex === 1 && !gameOver) {
       setTimeout(() => {
         if (!gameOver) {
@@ -768,10 +1023,10 @@ function initGameEngine() {
           if (target && cue) {
             aimAngle = Math.atan2(target.y - cue.y, target.x - cue.x);
             updateAngleDisplay();
-            executeShot(0.5 + Math.random() * 0.18);
+            executeShot(0.45 + Math.random() * 0.22);
           }
         }
-      }, 1400);
+      }, 1300);
     }
   }
 
@@ -781,6 +1036,30 @@ function initGameEngine() {
     gameOver = true;
     matchHandled = true;
     clearInterval(timerInterval);
+
+    if (isPractice) {
+      const modal = document.createElement("div");
+      modal.className = "modal-backdrop";
+      modal.innerHTML = `
+        <div class="modal-card" style="text-align: center; border: 2px solid var(--gold); max-width: 380px;">
+          <h2 class="gold-title" style="font-size: 24px; margin-bottom: 8px;">PRACTICE SESSION COMPLETE</h2>
+          <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 20px;">${reason}</p>
+          <button id="btn-finish-lobby" class="btn btn-gold btn-block" style="height: 48px; font-size: 15px; font-weight: 800;">
+            RETURN TO ARENA LOBBY
+          </button>
+        </div>
+      `;
+      document.getElementById("app-container").appendChild(modal);
+      modal.querySelector("#btn-finish-lobby").onclick = () => {
+        modal.remove();
+        const appContainer = document.getElementById("app-container");
+        if (appContainer) appContainer.classList.remove("in-game");
+        currentRoom = null;
+        setStorage("current_room", null);
+        navigateTo("/play");
+      };
+      return;
+    }
 
     const isUserWinner = winner.id === currentUser.playerId;
     const pot = currentRoom.entryAmount * 2;
@@ -807,14 +1086,14 @@ function initGameEngine() {
     const users = getStorage("users", []);
     const u = users.find(x => x.id === currentUser.id);
     if (u) {
-      u.matchesPlayed++;
+      u.matchesPlayed = (u.matchesPlayed || 0) + 1;
       const prevBal = u.coinBalance;
       if (isUserWinner) {
         u.coinBalance += pot;
-        u.matchesWon++;
+        u.matchesWon = (u.matchesWon || 0) + 1;
         recordTransaction(u.id, u.playerId, "MATCH_RESULT", pot, prevBal, u.coinBalance, `Won match in ${currentRoom.roomId}`);
       } else {
-        u.matchesLost++;
+        u.matchesLost = (u.matchesLost || 0) + 1;
       }
       setStorage("users", users);
       currentUser.coinBalance = u.coinBalance;
@@ -898,16 +1177,29 @@ function initGameEngine() {
       const appContainer = document.getElementById("app-container");
       if (appContainer) appContainer.classList.remove("in-game");
       currentRoom = null;
+      setStorage("current_room", null);
       navigateTo("/play");
     };
   }
 
-  // Forfeit handler
-  document.getElementById("btn-leave-match").onclick = () => {
-    if (confirm("Forfeit match? Entry coins will be lost.")) {
-      finishMatch(currentRoom.players[1], `${currentUser.username} forfeited the match.`);
-    }
-  };
+  // Leave / Forfeit handler
+  const btnLeave = document.getElementById("btn-leave-match");
+  if (btnLeave) {
+    btnLeave.onclick = () => {
+      if (isPractice) {
+        clearInterval(timerInterval);
+        const appContainer = document.getElementById("app-container");
+        if (appContainer) appContainer.classList.remove("in-game");
+        currentRoom = null;
+        setStorage("current_room", null);
+        navigateTo("/play");
+        return;
+      }
+      if (confirm("Forfeit match? Entry coins will be lost.")) {
+        finishMatch(currentRoom.players[1], `${currentUser.username} forfeited the match.`);
+      }
+    };
+  }
 
   // ==========================================
   // CANVAS DRAWING ENGINE (Horizontal Landscape)
@@ -927,22 +1219,20 @@ function initGameEngine() {
     ctx.fillStyle = "rgba(255, 213, 79, 0.45)";
     // Top & Bottom Rail Diamonds
     for (let x of [160, 280, 420, 560, 680]) {
-      // Top
       ctx.beginPath();
       ctx.arc(x, 12, 2.5, 0, Math.PI * 2);
       ctx.fill();
-      // Bottom
+
       ctx.beginPath();
       ctx.arc(x, height - 12, 2.5, 0, Math.PI * 2);
       ctx.fill();
     }
     // Left & Right Rail Diamonds
     for (let y of [140, 210, 280]) {
-      // Left
       ctx.beginPath();
       ctx.arc(12, y, 2.5, 0, Math.PI * 2);
       ctx.fill();
-      // Right
+
       ctx.beginPath();
       ctx.arc(width - 12, y, 2.5, 0, Math.PI * 2);
       ctx.fill();
@@ -1005,7 +1295,7 @@ function initGameEngine() {
 
     // 4. Aiming Direction Line, Collision Guide & Trajectories
     const cue = balls[0];
-    if (cue && !cue.pocketed && !isMoving && !gameOver && turnIndex === 0) {
+    if (cue && !cue.pocketed && !isMoving && !gameOver && (turnIndex === 0 || isPractice)) {
       const pred = calculateAimPrediction();
       if (pred) {
         // Dotted aim line from cue ball to ghost cue ball
@@ -1060,9 +1350,9 @@ function initGameEngine() {
       }
 
       // Cue Stick with Rotation & Pullback Animation
-      const pullback = 14 + power * 40 - stickStrikeOffset;
+      const pullback = 14 + power * 45 - stickStrikeOffset;
       const stickStart = cue.r + pullback;
-      const stickEnd = stickStart + 170;
+      const stickEnd = stickStart + 175;
       const cosA = Math.cos(aimAngle);
       const sinA = Math.sin(aimAngle);
 
@@ -1092,7 +1382,7 @@ function initGameEngine() {
       ctx.stroke();
     }
 
-    // 5. Draw All 3D Colorful Balls (Requirement 14)
+    // 5. Draw All 3D Colorful Balls
     for (let b of balls) {
       if (b.pocketed) continue;
       const r = b.r * (1 - b.sinking * 0.7);

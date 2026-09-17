@@ -22,6 +22,11 @@ function setStorage(key, value) {
   }
 }
 
+// Global active sessions (persisted across page reloads)
+let currentUser = getStorage("current_user", null);
+let adminSession = getStorage("admin_session", null);
+let currentRoom = getStorage("current_room", null);
+
 function formatNumber(num) {
   return (num || 0).toLocaleString();
 }
@@ -119,7 +124,7 @@ function initDatabase() {
         password: "P00l#Master$2026",
         emailOrPhone: "rahul@pool.com",
         avatar: "avatar_2",
-        coinBalance: 0, // Starts at 0 to test coin request system
+        coinBalance: 50000, // Generous starting balance for testing 1v1 matches
         role: "USER",
         status: "ACTIVE",
         isApproved: true,
@@ -139,6 +144,15 @@ function initDatabase() {
         u.password = "P00l#Master$2026";
       }
     });
+    // Ensure user Rahul has at least 50000 coins for testing
+    const rahul = users.find(u => u.username === "Rahul" || u.playerId === "8BP-104582");
+    if (rahul && rahul.coinBalance < 5000) {
+      rahul.coinBalance = 50000;
+      if (currentUser && currentUser.id === rahul.id) {
+        currentUser.coinBalance = 50000;
+        setStorage("current_user", currentUser);
+      }
+    }
     // Ensure admin user 789895 is always present with correct credentials
     const adminIdx = users.findIndex(u => u.username === "789895" || u.role === "ADMIN");
     if (adminIdx !== -1) {

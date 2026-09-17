@@ -99,6 +99,9 @@ function renderRoute() {
     }
   } else if (path === "/game") {
     if (!currentRoom) {
+      currentRoom = getStorage("current_room", null);
+    }
+    if (!currentRoom) {
       navigateTo("/play", true);
     } else {
       renderGameView();
@@ -438,35 +441,44 @@ function renderHomeView() {
       <!-- Mode Selection -->
       <div style="margin-bottom: 12px;">
         <label style="font-size: 11px; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Game Mode</label>
-        <div style="display: flex; gap: 8px; margin-top: 6px;">
+        <div style="display: flex; gap: 6px; margin-top: 6px;">
+          <button id="mode-practice" class="btn ${selectedMode === 'practice' ? 'btn-gold' : 'btn-dark'}" style="flex: 1; padding: 9px 2px; font-size: 11px; font-weight: 800;">
+            🎯 PRACTICE (FREE)
+          </button>
           ${gameConfig.mode1v1 !== false ? `
-            <button id="mode-1v1" class="btn ${selectedMode === '1v1' ? 'btn-gold' : 'btn-dark'}" style="flex: 1; padding: 8px 0; font-size: 12px; font-weight: 800;">
-              1 VS 1 SOLO
+            <button id="mode-1v1" class="btn ${selectedMode === '1v1' ? 'btn-gold' : 'btn-dark'}" style="flex: 1; padding: 9px 2px; font-size: 11px; font-weight: 800;">
+              ⚔️ 1 VS 1 SOLO
             </button>
           ` : ''}
           ${gameConfig.mode2v2 !== false ? `
-            <button id="mode-2v2" class="btn ${selectedMode === '2v2' ? 'btn-gold' : 'btn-dark'}" style="flex: 1; padding: 8px 0; font-size: 12px; font-weight: 800;">
-              2 VS 2 TEAMS
+            <button id="mode-2v2" class="btn ${selectedMode === '2v2' ? 'btn-gold' : 'btn-dark'}" style="flex: 1; padding: 9px 2px; font-size: 11px; font-weight: 800;">
+              👥 2 VS 2 TEAMS
             </button>
           ` : ''}
         </div>
       </div>
 
-      <!-- Entry Amount Tiers -->
+      <!-- Entry Amount Tiers or Practice Free Banner -->
       <div style="margin-bottom: 12px;">
         <label style="font-size: 11px; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Entry Coins</label>
-        <div id="entry-chips" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;">
-          ${(gameConfig.entryAmounts || [1000, 2000, 5000, 10000]).map(amt => `
-            <div class="chip ${!isCustom && selectedEntry === amt ? 'active' : ''}" data-entry="${amt}" style="flex: 1; min-width: 60px; text-align: center; justify-content: center;">
-              ${formatNumber(amt)}
-            </div>
-          `).join('')}
-          ${gameConfig.customEntryEnabled !== false ? `
-            <div class="chip ${isCustom ? 'active' : ''}" id="chip-custom-entry" style="flex: 1; min-width: 70px; text-align: center; justify-content: center;">
-              ${isCustom ? formatNumber(selectedEntry) : 'Custom...'}
-            </div>
-          ` : ''}
-        </div>
+        ${selectedMode === 'practice' ? `
+          <div style="margin-top: 6px; background: rgba(16, 185, 129, 0.12); border: 1.5px solid var(--emerald); border-radius: 10px; padding: 10px 14px; font-size: 12px; color: var(--emerald); font-weight: 800; text-align: center;">
+            🎯 FREE PRACTICE MODE • 0 COINS ENTRY • TEST AIM & PHYSICS
+          </div>
+        ` : `
+          <div id="entry-chips" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;">
+            ${(gameConfig.entryAmounts || [1000, 2000, 5000, 10000]).map(amt => `
+              <div class="chip ${!isCustom && selectedEntry === amt ? 'active' : ''}" data-entry="${amt}" style="flex: 1; min-width: 60px; text-align: center; justify-content: center;">
+                ${formatNumber(amt)}
+              </div>
+            `).join('')}
+            ${gameConfig.customEntryEnabled !== false ? `
+              <div class="chip ${isCustom ? 'active' : ''}" id="chip-custom-entry" style="flex: 1; min-width: 70px; text-align: center; justify-content: center;">
+                ${isCustom ? formatNumber(selectedEntry) : 'Custom...'}
+              </div>
+            ` : ''}
+          </div>
+        `}
       </div>
 
       <!-- Match Duration -->
@@ -479,9 +491,13 @@ function renderHomeView() {
         </div>
       </div>
 
-      <!-- FIND MATCH Button (Requirement 10 & 19) -->
+      <!-- FIND MATCH / START PRACTICE Button -->
       <button id="btn-play-now" class="btn btn-gold btn-block" style="height: 48px; font-size: 15px; font-weight: 800; box-shadow: 0 4px 16px rgba(255,213,79,0.35);">
-        ⚡ FIND MATCH (${formatNumber(selectedEntry)} COINS)
+        ${selectedMode === 'practice'
+          ? '▶️ START PRACTICE MATCH (FREE)'
+          : (selectedMode === '2v2'
+              ? `⚡ FIND 2v2 MATCH (${formatNumber(selectedEntry)} COINS)`
+              : `⚡ FIND 1v1 MATCH (${formatNumber(selectedEntry)} COINS)`)}
       </button>
     </div>
 
@@ -502,8 +518,11 @@ function renderHomeView() {
       </div>
     ` : ''}
 
-    <!-- Quick Room Options -->
+    <!-- Quick Room & Practice Options -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px;">
+      <button id="btn-quick-practice" class="btn btn-gold" style="font-size: 12px; font-weight: 800; padding: 10px 0; grid-column: span 2; box-shadow: 0 2px 10px rgba(255,213,79,0.25);">
+        🎯 QUICK PRACTICE TABLE (INSTANT PLAY)
+      </button>
       <button id="btn-create-room" class="btn btn-dark" style="font-size: 12px; padding: 10px 0;">
         ➕ Create Private Room
       </button>
@@ -548,6 +567,13 @@ function renderHomeView() {
   document.getElementById("link-all-matches").onclick = (e) => { e.preventDefault(); navigateTo("/history"); };
 
   // Mode Toggles
+  const btnModePractice = document.getElementById("mode-practice");
+  if (btnModePractice) {
+    btnModePractice.onclick = () => {
+      selectedMode = "practice";
+      renderHomeView();
+    };
+  }
   const btnMode1v1 = document.getElementById("mode-1v1");
   if (btnMode1v1) {
     btnMode1v1.onclick = () => {
@@ -563,6 +589,14 @@ function renderHomeView() {
     };
   }
 
+  // Quick Practice Button
+  const btnQuickPractice = document.getElementById("btn-quick-practice");
+  if (btnQuickPractice) {
+    btnQuickPractice.onclick = () => {
+      startPracticeGame(selectedDuration);
+    };
+  }
+
   // Entry Chips
   document.querySelectorAll("#entry-chips .chip[data-entry]").forEach(chip => {
     chip.onclick = () => {
@@ -570,7 +604,10 @@ function renderHomeView() {
       document.querySelectorAll("#entry-chips .chip").forEach(c => c.classList.remove("active"));
       chip.classList.add("active");
       selectedEntry = parseInt(chip.getAttribute("data-entry"));
-      document.getElementById("btn-play-now").textContent = `PLAY NOW (${formatNumber(selectedEntry)} COINS)`;
+      const btnPlay = document.getElementById("btn-play-now");
+      if (btnPlay && selectedMode !== "practice") {
+        btnPlay.textContent = `⚡ FIND MATCH (${formatNumber(selectedEntry)} COINS)`;
+      }
     };
   });
 
@@ -592,7 +629,10 @@ function renderHomeView() {
         document.querySelectorAll("#entry-chips .chip").forEach(c => c.classList.remove("active"));
         chipCustom.classList.add("active");
         chipCustom.textContent = formatNumber(num);
-        document.getElementById("btn-play-now").textContent = `PLAY NOW (${formatNumber(selectedEntry)} COINS)`;
+        const btnPlay = document.getElementById("btn-play-now");
+        if (btnPlay && selectedMode !== "practice") {
+          btnPlay.textContent = `⚡ FIND MATCH (${formatNumber(selectedEntry)} COINS)`;
+        }
       }
     };
   }
@@ -606,8 +646,12 @@ function renderHomeView() {
     };
   });
 
-  // Find Match (Requirement 10 & 19)
+  // Find Match / Start Practice (Requirement 10 & 19)
   document.getElementById("btn-play-now").onclick = () => {
+    if (selectedMode === "practice") {
+      startPracticeGame(selectedDuration);
+      return;
+    }
     if (currentUser.coinBalance < selectedEntry) {
       showToast("Insufficient coins! Required: " + formatNumber(selectedEntry));
       showRequestCoinsDialog();
@@ -802,6 +846,26 @@ function showConfirmEntryDialog(entry, mode, duration) {
 // ==========================================
 // FULL MATCHMAKING & COUNTDOWN FLOW (Requirement 19)
 // ==========================================
+function startPracticeGame(duration = 5) {
+  const roomId = "PRACTICE-" + Math.random().toString(36).substring(2, 6).toUpperCase();
+  currentRoom = {
+    roomId: roomId,
+    hostPlayerId: currentUser.playerId,
+    hostUsername: currentUser.username,
+    mode: "practice",
+    entryAmount: 0,
+    durationMinutes: duration,
+    players: [
+      { id: currentUser.playerId, name: currentUser.username, avatar: currentUser.avatar, team: 1 },
+      { id: "PRACTICE-BOT", name: "Solo Practice", avatar: "avatar_2", team: 2 }
+    ]
+  };
+  setStorage("current_room", currentRoom);
+  recordUserActivity(currentUser.id, currentUser.playerId, currentUser.username, "PRACTICE_GAME", roomId, "Started Solo Practice Match");
+  showToast("Opening Practice Table...");
+  navigateTo("/game");
+}
+
 function startMatchmakingFlow(mode, entry, duration) {
   const users = getStorage("users", []);
   const u = users.find(x => x.id === currentUser.id);
@@ -858,6 +922,7 @@ function startMatchmakingFlow(mode, entry, duration) {
       { id: opponentId, name: opponentName, avatar: "avatar_5", team: 2 }
     ]
   };
+  setStorage("current_room", currentRoom);
 
   // Matchmaking & 3-2-1 Countdown Modal
   const modal = document.createElement("div");
@@ -967,6 +1032,7 @@ function createNewRoom(mode, entry, duration, presetRoomId) {
       { id: "8BP-OPP-99", name: "Challenger", avatar: "avatar_5", team: 2 }
     ]
   };
+  setStorage("current_room", currentRoom);
   navigateTo("/room");
 }
 
@@ -1014,6 +1080,7 @@ function renderRoomView() {
   };
 
   document.getElementById("btn-start-game").onclick = () => {
+    setStorage("current_room", currentRoom);
     navigateTo("/game");
   };
 }
