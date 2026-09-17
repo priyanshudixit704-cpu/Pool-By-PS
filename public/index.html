@@ -1,0 +1,2458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>8 Ball Pool - Multiplayer Billiards Arena</title>
+  <meta name="description" content="Mobile-first 8 Ball Pool multiplayer game with playable physics, rooms, matchmaking, invitations, virtual coin ledger, and admin management.">
+  <link rel="icon" type="image/jpeg" href="/public/img_app_icon.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #040e0a;
+      --bg-card: #0d1d16;
+      --bg-card-border: #163626;
+      --felt-green: #094e2e;
+      --felt-bright: #0e693f;
+      --gold: #ffd54f;
+      --gold-dark: #c5a059;
+      --emerald: #10b981;
+      --emerald-dark: #064e3b;
+      --loss-red: #ef4444;
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --text-muted: #6b7280;
+      --wood-rail: #4a2810;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg-dark);
+      background-image: radial-gradient(circle at 50% 10%, #0d2e20 0%, #040e0a 80%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      overflow-x: hidden;
+    }
+
+    #app-container {
+      width: 100%;
+      max-width: 480px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      background: #06150f;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+      border-left: 1px solid rgba(255, 255, 255, 0.05);
+      border-right: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .view-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      padding-bottom: 84px;
+      overflow-y: auto;
+    }
+
+    .no-bottom-pad {
+      padding-bottom: 16px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+
+    .card-gold {
+      border-color: rgba(255, 213, 79, 0.4);
+    }
+
+    /* Typography */
+    h1, h2, h3, h4 {
+      color: var(--text-primary);
+      font-weight: 800;
+    }
+
+    .gold-title {
+      color: var(--gold);
+      letter-spacing: 1.5px;
+      text-shadow: 0 2px 8px rgba(255, 213, 79, 0.2);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: inherit;
+      font-weight: 700;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 18px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-gold {
+      background: var(--gold);
+      color: #120c00;
+      box-shadow: 0 4px 14px rgba(255, 213, 79, 0.3);
+    }
+
+    .btn-emerald {
+      background: var(--felt-bright);
+      color: #fff;
+    }
+
+    .btn-dark {
+      background: #153123;
+      color: var(--gold);
+      border: 1px solid var(--bg-card-border);
+    }
+
+    .btn-danger {
+      background: var(--loss-red);
+      color: white;
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+      border-radius: 8px;
+    }
+
+    .btn-block {
+      width: 100%;
+    }
+
+    /* Chips & Badges */
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 700;
+      background: #11281e;
+      border: 1px solid var(--bg-card-border);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .chip.active {
+      background: var(--gold);
+      color: #0b0f0c;
+      border-color: var(--gold);
+    }
+
+    .coin-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #132a20;
+      border: 1.5px solid var(--gold);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--gold);
+    }
+
+    /* Avatars */
+    .avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: white;
+      border: 2px solid var(--gold);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .avatar-sm { width: 36px; height: 36px; font-size: 12px; }
+    .avatar-lg { width: 64px; height: 64px; font-size: 22px; }
+
+    .online-indicator {
+      width: 12px;
+      height: 12px;
+      background: var(--emerald);
+      border: 2px solid #06150f;
+      border-radius: 50%;
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+    }
+
+    .online-indicator.offline {
+      background: #6b7280;
+    }
+
+    /* Inputs */
+    .input-field {
+      width: 100%;
+      background: #091711;
+      border: 1px solid var(--bg-card-border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 12px;
+    }
+
+    .input-field:focus {
+      border-color: var(--gold);
+    }
+
+    /* Bottom Navigation Bar */
+    .bottom-nav {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 68px;
+      background: #0b1a13;
+      border-top: 1px solid var(--bg-card-border);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      z-index: 50;
+    }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+
+    .nav-item.active {
+      color: var(--gold);
+    }
+
+    .nav-icon {
+      font-size: 20px;
+    }
+
+    /* Modals & Dialogs */
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.82);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 100;
+    }
+
+    .modal-card {
+      width: 100%;
+      max-width: 400px;
+      background: #0e2219;
+      border: 1px solid var(--gold);
+      border-radius: 20px;
+      padding: 20px;
+      animation: popIn 0.2s ease-out;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.92); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    /* Pool Canvas */
+    #canvas-wrap {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      touch-action: none;
+    }
+
+    #pool-canvas {
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.9), inset 0 0 15px rgba(0,0,0,0.8);
+      cursor: crosshair;
+    }
+
+    /* Toast */
+    #toast {
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-60px);
+      background: #143525;
+      border: 1px solid var(--gold);
+      color: var(--gold);
+      padding: 10px 20px;
+      border-radius: 24px;
+      font-size: 13px;
+      font-weight: 700;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+      z-index: 200;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      opacity: 0;
+      pointer-events: none;
+      text-align: center;
+      max-width: 88%;
+    }
+
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="app-container">
+    <div id="toast">Message</div>
+    <div id="main-view" class="view-content"></div>
+    <nav id="bottom-bar" class="bottom-nav" style="display: none;">
+      <div class="nav-item" data-route="/play">
+        <span class="nav-icon">🎱</span>
+        <span>Play</span>
+      </div>
+      <div class="nav-item" data-route="/leaderboard">
+        <span class="nav-icon">🏆</span>
+        <span>Ranks</span>
+      </div>
+      <div class="nav-item" data-route="/history">
+        <span class="nav-icon">📜</span>
+        <span>Matches</span>
+      </div>
+      <div class="nav-item" data-route="/profile">
+        <span class="nav-icon">👤</span>
+        <span>Profile</span>
+      </div>
+    </nav>
+  </div>
+
+  <script>
+    // ==========================================
+    // DATA LAYER & PERSISTENCE (Matches Room Schema)
+    // ==========================================
+    const STORAGE_PREFIX = "8bp_";
+
+    function getStorage(key, fallback) {
+      try {
+        const item = localStorage.getItem(STORAGE_PREFIX + key);
+        return item ? JSON.parse(item) : fallback;
+      } catch (e) {
+        return fallback;
+      }
+    }
+
+    function setStorage(key, value) {
+      try {
+        localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
+      } catch (e) {}
+    }
+
+    // Default Seed Data
+    function initDatabase() {
+      let users = getStorage("users", null);
+      if (!users) {
+        users = [
+          {
+            id: 1,
+            playerId: "8BP-000001",
+            username: "admin",
+            password: "admin123",
+            emailOrPhone: "admin@8ballpool.app",
+            avatar: "avatar_1",
+            coinBalance: 1000000,
+            role: "ADMIN",
+            status: "ACTIVE",
+            isApproved: true,
+            isOnline: true,
+            matchesPlayed: 0,
+            matchesWon: 0,
+            matchesLost: 0,
+            createdAt: Date.now()
+          },
+          {
+            id: 2,
+            playerId: "8BP-104582",
+            username: "ApexPlayer",
+            password: "user123",
+            emailOrPhone: "apex@pool.com",
+            avatar: "avatar_2",
+            coinBalance: 185000,
+            role: "USER",
+            status: "ACTIVE",
+            isApproved: true,
+            isOnline: true,
+            matchesPlayed: 14,
+            matchesWon: 11,
+            matchesLost: 3,
+            createdAt: Date.now() - 86400000 * 3
+          },
+          {
+            id: 3,
+            playerId: "8BP-882190",
+            username: "CueMaster",
+            password: "user123",
+            emailOrPhone: "cue@pool.com",
+            avatar: "avatar_3",
+            coinBalance: 240000,
+            role: "USER",
+            status: "ACTIVE",
+            isApproved: true,
+            isOnline: true,
+            matchesPlayed: 25,
+            matchesWon: 19,
+            matchesLost: 6,
+            createdAt: Date.now() - 86400000 * 5
+          }
+        ];
+        setStorage("users", users);
+      }
+
+      let txns = getStorage("transactions", null);
+      if (!txns) {
+        txns = [
+          {
+            transactionId: "TXN-ADMIN-INIT",
+            userId: 1,
+            userPlayerId: "8BP-000001",
+            type: "STARTING_BONUS",
+            amount: 1000000,
+            previousBalance: 0,
+            newBalance: 1000000,
+            description: "Admin master account allocation",
+            createdAt: Date.now()
+          }
+        ];
+        setStorage("transactions", txns);
+      }
+
+      let matches = getStorage("matches", []);
+      setStorage("matches", matches);
+
+      let config = getStorage("config", null);
+      if (!config) {
+        config = {
+          allowedEntries: [1000, 2000, 5000, 10000],
+          customMin: 500,
+          customMax: 500000,
+          durations: [1, 2, 5],
+          is1v1: true,
+          is2v2: true,
+          maintenance: false
+        };
+        setStorage("config", config);
+      }
+
+      let audit = getStorage("audit_logs", []);
+      setStorage("audit_logs", audit);
+    }
+
+    initDatabase();
+
+    // Active Session
+    let currentUser = getStorage("current_user", null);
+    let adminSession = getStorage("admin_session", null);
+    let currentRoom = null;
+    let activeMatchEngine = null;
+
+    function formatNumber(num) {
+      return (num || 0).toLocaleString();
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById("toast");
+      toast.textContent = msg;
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 2600);
+    }
+
+    // Avatar Color Helper
+    const AVATAR_COLORS = [
+      ["#2E7D32", "#1B5E20"],
+      ["#1565C0", "#0D47A1"],
+      ["#C62828", "#8E0000"],
+      ["#6A1B9A", "#4A148C"],
+      ["#EF6C00", "#E65100"],
+      ["#00838F", "#006064"]
+    ];
+
+    function getAvatarGradient(name) {
+      let hash = 0;
+      for (let i = 0; i < (name || "").length; i++) hash += name.charCodeAt(i);
+      const pair = AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+      return `linear-gradient(135deg, ${pair[0]}, ${pair[1]})`;
+    }
+
+    // ==========================================
+    // ROUTING ENGINE (Fixes Vercel 404 & Refreshes)
+    // ==========================================
+    function navigateTo(path, replace = false) {
+      if (replace) {
+        window.history.replaceState({}, "", path);
+      } else {
+        window.history.pushState({}, "", path);
+      }
+      renderRoute();
+    }
+
+    window.addEventListener("popstate", () => {
+      renderRoute();
+    });
+
+    function renderRoute() {
+      const path = window.location.pathname || "/";
+      const bottomBar = document.getElementById("bottom-bar");
+
+      // Auth guard
+      if (!currentUser && !adminSession) {
+        bottomBar.style.display = "none";
+        if (path === "/admin") {
+          renderAdminLogin();
+        } else {
+          renderAuthView(path === "/register" ? 1 : 0);
+        }
+        return;
+      }
+
+      if (adminSession && path.startsWith("/admin")) {
+        bottomBar.style.display = "none";
+        renderAdminDashboard();
+        return;
+      }
+
+      if (!currentUser) {
+        navigateTo("/login", true);
+        return;
+      }
+
+      // User logged in
+      const navRoutes = ["/", "/play", "/leaderboard", "/history", "/profile"];
+      const isNavRoute = navRoutes.includes(path);
+      bottomBar.style.display = isNavRoute ? "flex" : "none";
+
+      // Highlight active nav item
+      document.querySelectorAll(".nav-item").forEach(item => {
+        const itemRoute = item.getAttribute("data-route");
+        if (itemRoute === path || (path === "/" && itemRoute === "/play")) {
+          item.classList.add("active");
+        } else {
+          item.classList.remove("active");
+        }
+      });
+
+      if (path === "/" || path === "/play") {
+        renderHomeView();
+      } else if (path === "/room") {
+        if (!currentRoom) {
+          navigateTo("/play", true);
+        } else {
+          renderRoomView();
+        }
+      } else if (path === "/game") {
+        if (!currentRoom) {
+          navigateTo("/play", true);
+        } else {
+          renderGameView();
+        }
+      } else if (path === "/leaderboard") {
+        renderLeaderboardView();
+      } else if (path === "/history") {
+        renderHistoryView();
+      } else if (path === "/profile") {
+        renderProfileView();
+      } else if (path === "/admin") {
+        if (currentUser.role === "ADMIN") {
+          adminSession = currentUser;
+          renderAdminDashboard();
+        } else {
+          showToast("Admin privileges required");
+          navigateTo("/play", true);
+        }
+      } else {
+        // Fallback route -> /play
+        navigateTo("/play", true);
+      }
+    }
+
+    // Attach bottom nav click handlers
+    document.querySelectorAll(".nav-item").forEach(item => {
+      item.addEventListener("click", () => {
+        navigateTo(item.getAttribute("data-route"));
+      });
+    });
+
+    // ==========================================
+    // AUTH VIEW (Login / Register / Admin Login)
+    // ==========================================
+    function renderAuthView(initialTab = 0) {
+      const container = document.getElementById("main-view");
+      container.className = "view-content no-bottom-pad";
+
+      container.innerHTML = `
+        <div style="text-align: center; margin-top: 24px; margin-bottom: 24px;">
+          <div style="width: 84px; height: 84px; border-radius: 50%; background: #0f3223; border: 3px solid var(--gold); margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+            <img src="/public/img_app_icon.jpg" alt="8 Ball Pool" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src=''; this.parentElement.innerHTML='<span style=\\'font-size:38px;\\'>🎱</span>';">
+          </div>
+          <h1 class="gold-title" style="font-size: 26px;">8 BALL POOL</h1>
+          <p style="color: var(--text-secondary); font-size: 13px; margin-top: 4px;">Multiplayer Billiards Arena</p>
+        </div>
+
+        <div style="display: flex; background: #0c1d15; border-radius: 12px; padding: 4px; margin-bottom: 20px; border: 1px solid var(--bg-card-border);">
+          <button id="tab-login" class="btn btn-block ${initialTab === 0 ? 'btn-gold' : 'btn-dark'}" style="flex: 1; border-radius: 8px;">Login</button>
+          <button id="tab-register" class="btn btn-block ${initialTab === 1 ? 'btn-gold' : 'btn-dark'}" style="flex: 1; border-radius: 8px; margin: 0 4px;">Register</button>
+          <button id="tab-admin" class="btn btn-block btn-dark" style="flex: 1; border-radius: 8px;">Admin</button>
+        </div>
+
+        <div id="auth-form-card" class="card card-gold">
+          <!-- Form dynamically injected -->
+        </div>
+      `;
+
+      function renderLoginForm() {
+        document.getElementById("auth-form-card").innerHTML = `
+          <h3 style="margin-bottom: 16px;">Welcome Player</h3>
+          <input type="text" id="login-id" class="input-field" placeholder="Username or Player ID (e.g. 8BP-104582)" />
+          <input type="password" id="login-pass" class="input-field" placeholder="Password" />
+          <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
+            <span id="btn-forgot-pass" style="color: var(--emerald); font-size: 12px; cursor: pointer; font-weight: 600;">Forgot Password?</span>
+          </div>
+          <button id="btn-submit-login" class="btn btn-gold btn-block" style="height: 48px; font-size: 15px;">LOGIN TO PLAY</button>
+        `;
+
+        document.getElementById("btn-submit-login").onclick = () => {
+          const id = document.getElementById("login-id").value.trim();
+          const pass = document.getElementById("login-pass").value;
+          if (!id || !pass) return showToast("Please fill all fields");
+
+          const users = getStorage("users", []);
+          const user = users.find(u => (u.username.toLowerCase() === id.toLowerCase() || u.playerId.toUpperCase() === id.toUpperCase()));
+          if (!user) return showToast("User not found with '" + id + "'");
+          if (user.password !== pass) return showToast("Incorrect password");
+          if (user.status === "SUSPENDED") return showToast("Account suspended. Contact admin.");
+
+          user.isOnline = true;
+          setStorage("users", users);
+          currentUser = user;
+          setStorage("current_user", user);
+
+          showToast("Welcome back, " + user.username + "!");
+          navigateTo("/play");
+        };
+
+        document.getElementById("btn-forgot-pass").onclick = () => showForgotPasswordDialog();
+      }
+
+      function renderRegisterForm() {
+        document.getElementById("auth-form-card").innerHTML = `
+          <h3 style="margin-bottom: 4px;">Create Your Account</h3>
+          <div style="display: flex; align-items: center; gap: 6px; background: #1b402b; padding: 6px 12px; border-radius: 20px; width: fit-content; margin-bottom: 16px;">
+            <span style="font-size: 14px;">🎁</span>
+            <span style="color: var(--gold); font-size: 12px; font-weight: 700;">Starting Bonus: 100,000 Coins</span>
+          </div>
+          <input type="text" id="reg-username" class="input-field" placeholder="Choose Username" />
+          <input type="text" id="reg-email" class="input-field" placeholder="Email or Phone Number" />
+          <input type="password" id="reg-pass" class="input-field" placeholder="Password" />
+          <p style="color: var(--text-muted); font-size: 11px; margin-bottom: 16px;">
+            You will automatically receive a permanent searchable Player ID (e.g. 8BP-104582).
+          </p>
+          <button id="btn-submit-reg" class="btn btn-emerald btn-block" style="height: 48px; font-size: 14px;">REGISTER & CLAIM 100K COINS</button>
+        `;
+
+        document.getElementById("btn-submit-reg").onclick = () => {
+          const username = document.getElementById("reg-username").value.trim();
+          const email = document.getElementById("reg-email").value.trim();
+          const pass = document.getElementById("reg-pass").value;
+          if (!username || !pass) return showToast("Username and password required");
+
+          const users = getStorage("users", []);
+          if (users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
+            return showToast("Username already taken");
+          }
+
+          // Unique Player ID: 8BP-XXXXXX
+          let randomId;
+          do {
+            randomId = "8BP-" + Math.floor(100000 + Math.random() * 900000);
+          } while (users.some(u => u.playerId === randomId));
+
+          const startingBalance = 100000;
+          const newUser = {
+            id: Date.now(),
+            playerId: randomId,
+            username: username,
+            password: pass,
+            emailOrPhone: email || "player@pool.app",
+            avatar: "avatar_" + Math.floor(1 + Math.random() * 6),
+            coinBalance: startingBalance,
+            role: "USER",
+            status: "ACTIVE",
+            isApproved: true,
+            isOnline: true,
+            matchesPlayed: 0,
+            matchesWon: 0,
+            matchesLost: 0,
+            createdAt: Date.now()
+          };
+
+          users.push(newUser);
+          setStorage("users", users);
+
+          // Record bonus transaction
+          const txns = getStorage("transactions", []);
+          txns.unshift({
+            transactionId: "TXN-" + Math.random().toString(36).substring(2, 9).toUpperCase(),
+            userId: newUser.id,
+            userPlayerId: newUser.playerId,
+            type: "STARTING_BONUS",
+            amount: startingBalance,
+            previousBalance: 0,
+            newBalance: startingBalance,
+            description: "Welcome bonus - 100,000 free virtual game coins",
+            createdAt: Date.now()
+          });
+          setStorage("transactions", txns);
+
+          currentUser = newUser;
+          setStorage("current_user", newUser);
+
+          showToast("Welcome " + username + "! 100,000 Coins added!");
+          navigateTo("/play");
+        };
+      }
+
+      function renderAdminForm() {
+        document.getElementById("auth-form-card").innerHTML = `
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <span style="font-size: 20px;">🛡️</span>
+            <h3>Administrator Portal</h3>
+          </div>
+          <p style="color: var(--text-muted); font-size: 11px; margin-bottom: 16px;">Credentials: admin / admin123</p>
+          <input type="text" id="admin-user" class="input-field" placeholder="Admin Username" value="admin" />
+          <input type="password" id="admin-pass" class="input-field" placeholder="Admin Password" value="admin123" />
+          <button id="btn-submit-admin" class="btn btn-gold btn-block" style="height: 48px; font-size: 14px; background: #ff9800; color: white;">LOGIN TO ADMIN CONSOLE</button>
+        `;
+
+        document.getElementById("btn-submit-admin").onclick = () => {
+          const user = document.getElementById("admin-user").value.trim();
+          const pass = document.getElementById("admin-pass").value;
+          const users = getStorage("users", []);
+          const admin = users.find(u => u.username === user && u.role === "ADMIN");
+
+          if (admin && admin.password === pass) {
+            adminSession = admin;
+            setStorage("admin_session", admin);
+            showToast("Admin access granted");
+            navigateTo("/admin");
+          } else {
+            showToast("Invalid admin credentials");
+          }
+        };
+      }
+
+      document.getElementById("tab-login").onclick = () => {
+        document.getElementById("tab-login").className = "btn btn-block btn-gold";
+        document.getElementById("tab-register").className = "btn btn-block btn-dark";
+        document.getElementById("tab-admin").className = "btn btn-block btn-dark";
+        renderLoginForm();
+      };
+
+      document.getElementById("tab-register").onclick = () => {
+        document.getElementById("tab-login").className = "btn btn-block btn-dark";
+        document.getElementById("tab-register").className = "btn btn-block btn-gold";
+        document.getElementById("tab-admin").className = "btn btn-block btn-dark";
+        renderRegisterForm();
+      };
+
+      document.getElementById("tab-admin").onclick = () => {
+        document.getElementById("tab-login").className = "btn btn-block btn-dark";
+        document.getElementById("tab-register").className = "btn btn-block btn-dark";
+        document.getElementById("tab-admin").className = "btn btn-block btn-gold";
+        renderAdminForm();
+      };
+
+      if (initialTab === 1) {
+        renderRegisterForm();
+      } else {
+        renderLoginForm();
+      }
+    }
+
+    function showForgotPasswordDialog() {
+      const modal = document.createElement("div");
+      modal.className = "modal-backdrop";
+      modal.innerHTML = `
+        <div class="modal-card">
+          <h3 class="gold-title" style="margin-bottom: 8px;">Reset Password</h3>
+          <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 12px;">Enter your Username or Player ID and new password.</p>
+          <input type="text" id="fp-id" class="input-field" placeholder="Username or Player ID" />
+          <input type="password" id="fp-new-pass" class="input-field" placeholder="New Password" />
+          <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button id="fp-cancel" class="btn btn-dark">Cancel</button>
+            <button id="fp-save" class="btn btn-gold">Reset</button>
+          </div>
+        </div>
+      `;
+      document.getElementById("app-container").appendChild(modal);
+
+      modal.querySelector("#fp-cancel").onclick = () => modal.remove();
+      modal.querySelector("#fp-save").onclick = () => {
+        const id = modal.querySelector("#fp-id").value.trim();
+        const pass = modal.querySelector("#fp-new-pass").value;
+        if (!id || !pass) return showToast("All fields required");
+
+        const users = getStorage("users", []);
+        const u = users.find(x => x.username.toLowerCase() === id.toLowerCase() || x.playerId.toUpperCase() === id.toUpperCase());
+        if (!u) return showToast("Player not found");
+
+        u.password = pass;
+        setStorage("users", users);
+        modal.remove();
+        showToast("Password reset successfully. Please login.");
+      };
+    }
+
+    // ==========================================
+    // HOME VIEW (Dashboard, Play, Invites)
+    // ==========================================
+    function renderHomeView() {
+      const container = document.getElementById("main-view");
+      container.className = "view-content";
+
+      // Refresh current user data
+      const users = getStorage("users", []);
+      currentUser = users.find(u => u.id === currentUser.id) || currentUser;
+
+      const invites = getStorage("invitations", []).filter(i => i.receiverPlayerId === currentUser.playerId && i.status === "PENDING");
+      const config = getStorage("config", { allowedEntries: [1000, 2000, 5000, 10000], durations: [1, 2, 5] });
+
+      let selectedMode = "1v1";
+      let selectedEntry = 2000;
+      let selectedDuration = 2;
+      let isCustom = false;
+      let customValue = "";
+
+      container.innerHTML = `
+        <!-- Pending Invitation Banner -->
+        ${invites.length > 0 ? `
+          <div class="card" style="background: #1e3a2b; border: 1.5px solid var(--gold);">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+              <div class="avatar avatar-sm" style="background: ${getAvatarGradient(invites[0].senderUsername)};">
+                ${invites[0].senderUsername.slice(0, 2).toUpperCase()}
+              </div>
+              <div>
+                <p style="font-weight: 700; font-size: 13px;">${invites[0].senderUsername} invited you to play 8 Ball Pool</p>
+                <p style="color: var(--gold); font-size: 11px;">${invites[0].mode} • Entry: ${formatNumber(invites[0].entryAmount)} Coins • ${invites[0].durationMinutes} Min</p>
+              </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 8px;">
+              <button id="btn-decline-invite" class="btn btn-dark btn-sm">Decline</button>
+              <button id="btn-accept-invite" class="btn btn-gold btn-sm">Accept & Play</button>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Top User Header Bar -->
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div class="avatar" style="background: ${getAvatarGradient(currentUser.username)};">
+                ${currentUser.username.slice(0, 2).toUpperCase()}
+                <div class="online-indicator ${currentUser.isOnline ? '' : 'offline'}"></div>
+              </div>
+              <div>
+                <h3 style="font-size: 17px;">${currentUser.username}</h3>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="color: var(--text-secondary); font-size: 12px;">ID: ${currentUser.playerId}</span>
+                  <span id="btn-copy-id" style="color: var(--gold); cursor: pointer; font-size: 12px;">📋</span>
+                </div>
+              </div>
+            </div>
+            <div class="coin-badge" style="cursor: pointer;" id="btn-coin-chip">
+              🪙 ${formatNumber(currentUser.coinBalance)}
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Action Buttons -->
+        <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+          <button id="btn-open-invite" class="btn btn-dark" style="flex: 1; padding: 10px; font-size: 13px;">
+            👤+ Invite ID
+          </button>
+          <button id="btn-create-room" class="btn btn-dark" style="flex: 1; padding: 10px; font-size: 13px; color: var(--gold);">
+            ➕ Create Room
+          </button>
+          <button id="btn-join-room" class="btn btn-dark" style="flex: 1; padding: 10px; font-size: 13px; color: var(--text-primary);">
+            🚪 Join Room
+          </button>
+        </div>
+
+        <!-- Match Configuration Card -->
+        <div class="card card-gold">
+          <p class="gold-title" style="font-size: 12px; margin-bottom: 12px;">MATCH CONFIGURATION</p>
+
+          <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">Game Mode</p>
+          <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+            <div id="mode-1v1" class="chip active" style="flex: 1; justify-content: center; height: 42px;">1 vs 1 Solo</div>
+            <div id="mode-2v2" class="chip" style="flex: 1; justify-content: center; height: 42px;">2 vs 2 Teams</div>
+          </div>
+
+          <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">Entry Coins</p>
+          <div id="entry-chips" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;">
+            ${config.allowedEntries.map(e => `
+              <div class="chip ${e === selectedEntry ? 'active' : ''}" data-entry="${e}">${formatNumber(e)}</div>
+            `).join('')}
+            <div class="chip" id="chip-custom">Custom</div>
+          </div>
+          <div id="custom-input-wrap" style="display: none; margin-bottom: 12px;">
+            <input type="number" id="custom-entry-val" class="input-field" placeholder="Enter custom amount (500 - 500,000)" style="margin-bottom: 0;" />
+          </div>
+
+          <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">Match Duration</p>
+          <div id="duration-chips" style="display: flex; gap: 6px; margin-bottom: 18px;">
+            ${config.durations.map(d => `
+              <div class="chip ${d === selectedDuration ? 'active' : ''}" data-dur="${d}" style="flex: 1; justify-content: center;">⏱️ ${d} Min</div>
+            `).join('')}
+          </div>
+
+          <button id="btn-play-now" class="btn btn-gold btn-block" style="height: 52px; font-size: 16px;">
+            PLAY NOW (${formatNumber(selectedEntry)} COINS)
+          </button>
+        </div>
+
+        <!-- Recent Matches Preview -->
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <p style="color: var(--text-secondary); font-size: 12px; font-weight: 700;">RECENT MATCHES</p>
+            <span id="btn-view-all-history" style="color: var(--emerald); font-size: 12px; cursor: pointer; font-weight: 600;">View All</span>
+          </div>
+          <div id="recent-matches-list">
+            <!-- Injected -->
+          </div>
+        </div>
+      `;
+
+      // Copy Player ID
+      document.getElementById("btn-copy-id").onclick = () => {
+        navigator.clipboard.writeText(currentUser.playerId);
+        showToast("Copied Player ID: " + currentUser.playerId);
+      };
+
+      document.getElementById("btn-coin-chip").onclick = () => navigateTo("/profile");
+      document.getElementById("btn-view-all-history").onclick = () => navigateTo("/history");
+
+      // Mode toggles
+      const mode1 = document.getElementById("mode-1v1");
+      const mode2 = document.getElementById("mode-2v2");
+      mode1.onclick = () => {
+        selectedMode = "1v1";
+        mode1.classList.add("active");
+        mode2.classList.remove("active");
+      };
+      mode2.onclick = () => {
+        selectedMode = "2v2";
+        mode2.classList.add("active");
+        mode1.classList.remove("active");
+      };
+
+      // Entry chips
+      document.querySelectorAll("#entry-chips .chip").forEach(chip => {
+        chip.onclick = () => {
+          document.querySelectorAll("#entry-chips .chip").forEach(c => c.classList.remove("active"));
+          chip.classList.add("active");
+          if (chip.id === "chip-custom") {
+            isCustom = true;
+            document.getElementById("custom-input-wrap").style.display = "block";
+          } else {
+            isCustom = false;
+            document.getElementById("custom-input-wrap").style.display = "none";
+            selectedEntry = parseInt(chip.getAttribute("data-entry"));
+            document.getElementById("btn-play-now").textContent = `PLAY NOW (${formatNumber(selectedEntry)} COINS)`;
+          }
+        };
+      });
+
+      document.getElementById("custom-entry-val")?.addEventListener("input", (e) => {
+        const val = parseInt(e.target.value) || 0;
+        document.getElementById("btn-play-now").textContent = `PLAY NOW (${formatNumber(val)} COINS)`;
+      });
+
+      // Duration chips
+      document.querySelectorAll("#duration-chips .chip").forEach(chip => {
+        chip.onclick = () => {
+          document.querySelectorAll("#duration-chips .chip").forEach(c => c.classList.remove("active"));
+          chip.classList.add("active");
+          selectedDuration = parseInt(chip.getAttribute("data-dur"));
+        };
+      });
+
+      // Play Now with Pre-Match Confirmation Dialog
+      document.getElementById("btn-play-now").onclick = () => {
+        const finalEntry = isCustom ? parseInt(document.getElementById("custom-entry-val").value) || 0 : selectedEntry;
+        if (finalEntry < 500 || finalEntry > 500000) return showToast("Entry must be between 500 and 500,000 coins");
+        if (currentUser.coinBalance < finalEntry) return showToast("Insufficient coins! Required: " + formatNumber(finalEntry));
+
+        showConfirmEntryDialog(finalEntry, selectedMode, selectedDuration);
+      };
+
+      // Action Dialogs
+      document.getElementById("btn-open-invite").onclick = () => showInvitePlayerDialog(selectedMode, selectedEntry, selectedDuration);
+      document.getElementById("btn-create-room").onclick = () => createNewRoom(selectedMode, selectedEntry, selectedDuration);
+      document.getElementById("btn-join-room").onclick = () => showJoinRoomDialog();
+
+      // Handle pending invite buttons
+      if (invites.length > 0) {
+        document.getElementById("btn-decline-invite").onclick = () => {
+          invites[0].status = "DECLINED";
+          setStorage("invitations", getStorage("invitations", []));
+          renderHomeView();
+          showToast("Invitation declined");
+        };
+        document.getElementById("btn-accept-invite").onclick = () => {
+          invites[0].status = "ACCEPTED";
+          setStorage("invitations", getStorage("invitations", []));
+          createNewRoom(invites[0].mode, invites[0].entryAmount, invites[0].durationMinutes, invites[0].roomId);
+        };
+      }
+
+      // Render recent matches
+      const userMatches = getStorage("matches", []).filter(m => m.playersJson.includes(currentUser.playerId)).slice(0, 3);
+      const listEl = document.getElementById("recent-matches-list");
+      if (userMatches.length === 0) {
+        listEl.innerHTML = `<p style="color: var(--text-muted); font-size: 13px; text-align: center; padding: 12px 0;">No matches played yet. Tap PLAY NOW to start!</p>`;
+      } else {
+        listEl.innerHTML = userMatches.map(m => {
+          const isWin = m.winnerPlayerId === currentUser.playerId;
+          return `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <div>
+                <p style="font-weight: 700; font-size: 13px;">${m.mode} • ${m.roomId}</p>
+                <p style="color: var(--text-muted); font-size: 11px;">${isWin ? 'Victory' : 'Defeat'}</p>
+              </div>
+              <span style="font-weight: 800; font-size: 13px; color: ${isWin ? 'var(--emerald)' : 'var(--loss-red)'};">
+                ${isWin ? '+' + formatNumber(m.coinsWonLost) : '-' + formatNumber(m.entryAmount)} Coins
+              </span>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    function showConfirmEntryDialog(entry, mode, duration) {
+      const modal = document.createElement("div");
+      modal.className = "modal-backdrop";
+      modal.innerHTML = `
+        <div class="modal-card">
+          <h3 class="gold-title" style="margin-bottom: 12px;">Confirm Match Entry</h3>
+          <div style="background: #091711; padding: 12px; border-radius: 12px; margin-bottom: 16px;">
+            <p style="font-size: 14px; font-weight: 700; margin-bottom: 4px;">Entry Fee: ${formatNumber(entry)} Coins</p>
+            <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 4px;">Your Balance: ${formatNumber(currentUser.coinBalance)} Coins</p>
+            <p style="color: var(--emerald); font-size: 13px; font-weight: 700;">Balance After Entry: ${formatNumber(currentUser.coinBalance - entry)} Coins</p>
+            <p style="color: var(--text-muted); font-size: 11px; margin-top: 6px;">Mode: ${mode} • Duration: ${duration} Minutes</p>
+          </div>
+          <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button id="conf-cancel" class="btn btn-dark">Cancel</button>
+            <button id="conf-ok" class="btn btn-gold">Confirm & Start</button>
+          </div>
+        </div>
+      `;
+      document.getElementById("app-container").appendChild(modal);
+
+      modal.querySelector("#conf-cancel").onclick = () => modal.remove();
+      modal.querySelector("#conf-ok").onclick = () => {
+        modal.remove();
+        createNewRoom(mode, entry, duration);
+      };
+    }
+
+    function createNewRoom(mode, entry, duration, presetRoomId) {
+      const roomId = presetRoomId || "ROOM #" + Math.random().toString(36).substring(2, 8).toUpperCase();
+      currentRoom = {
+        roomId: roomId,
+        hostPlayerId: currentUser.playerId,
+        hostUsername: currentUser.username,
+        mode: mode,
+        entryAmount: entry,
+        durationMinutes: duration,
+        players: mode === "2v2" ? [
+          { id: currentUser.playerId, name: currentUser.username, avatar: currentUser.avatar, team: 1 },
+          { id: "8BP-BOT-A2", name: "Alex (P2)", avatar: "avatar_2", team: 1 },
+          { id: "8BP-BOT-B1", name: "Sam (P3)", avatar: "avatar_3", team: 2 },
+          { id: "8BP-BOT-B2", name: "Leo (P4)", avatar: "avatar_4", team: 2 }
+        ] : [
+          { id: currentUser.playerId, name: currentUser.username, avatar: currentUser.avatar, team: 1 },
+          { id: "8BP-OPP-99", name: "Challenger", avatar: "avatar_5", team: 2 }
+        ]
+      };
+      navigateTo("/room");
+    }
+
+    function showInvitePlayerDialog(mode, entry, duration) {
+      const modal = document.createElement("div");
+      modal.className = "modal-backdrop";
+      modal.innerHTML = `
+        <div class="modal-card">
+          <h3 class="gold-title" style="margin-bottom: 8px;">Invite Player by ID</h3>
+          <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 12px;">Enter another player's permanent Player ID to challenge them.</p>
+          <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+            <input type="text" id="inv-player-id" class="input-field" placeholder="e.g. 8BP-104582" style="margin-bottom: 0;" />
+            <button id="inv-search-btn" class="btn btn-gold btn-sm">Search</button>
+          </div>
+          <div id="inv-player-card" style="display: none; margin-bottom: 16px;"></div>
+          <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button id="inv-close" class="btn btn-dark">Close</button>
+            <button id="inv-send-btn" class="btn btn-gold" disabled>Send Invite</button>
+          </div>
+        </div>
+      `;
+      document.getElementById("app-container").appendChild(modal);
+
+      let targetUser = null;
+      modal.querySelector("#inv-close").onclick = () => modal.remove();
+
+      modal.querySelector("#inv-search-btn").onclick = () => {
+        const id = modal.querySelector("#inv-player-id").value.trim().toUpperCase();
+        const users = getStorage("users", []);
+        targetUser = users.find(u => u.playerId.toUpperCase() === id);
+
+        const card = modal.querySelector("#inv-player-card");
+        if (targetUser) {
+          card.style.display = "block";
+          card.innerHTML = `
+            <div style="background: #163e27; padding: 10px; border-radius: 12px; display: flex; align-items: center; gap: 10px;">
+              <div class="avatar avatar-sm" style="background: ${getAvatarGradient(targetUser.username)};">
+                ${targetUser.username.slice(0, 2).toUpperCase()}
+              </div>
+              <div>
+                <p style="font-weight: 700; font-size: 13px;">${targetUser.username}</p>
+                <p style="color: var(--text-muted); font-size: 11px;">${targetUser.playerId} • ${targetUser.isOnline ? '🟢 Online' : '⚪ Offline'}</p>
+              </div>
+            </div>
+          `;
+          modal.querySelector("#inv-send-btn").disabled = false;
+        } else {
+          card.style.display = "block";
+          card.innerHTML = `<p style="color: var(--loss-red); font-size: 12px;">No player found with ID '${id}'</p>`;
+          modal.querySelector("#inv-send-btn").disabled = true;
+        }
+      };
+
+      modal.querySelector("#inv-send-btn").onclick = () => {
+        if (!targetUser) return;
+        const invites = getStorage("invitations", []);
+        invites.push({
+          invitationId: "INV-" + Math.random().toString(36).substring(2, 8).toUpperCase(),
+          senderPlayerId: currentUser.playerId,
+          senderUsername: currentUser.username,
+          senderAvatar: currentUser.avatar,
+          receiverPlayerId: targetUser.playerId,
+          roomId: "ROOM #" + Math.random().toString(36).substring(2, 8).toUpperCase(),
+          mode: mode,
+          entryAmount: entry,
+          durationMinutes: duration,
+          status: "PENDING",
+          createdAt: Date.now()
+        });
+        setStorage("invitations", invites);
+        modal.remove();
+        showToast("Invitation sent to " + targetUser.username + "!");
+      };
+    }
+
+    function showJoinRoomDialog() {
+      const modal = document.createElement("div");
+      modal.className = "modal-backdrop";
+      modal.innerHTML = `
+        <div class="modal-card">
+          <h3 class="gold-title" style="margin-bottom: 8px;">Join Match Room</h3>
+          <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 12px;">Enter 6-character room code or full Room ID.</p>
+          <input type="text" id="join-room-code" class="input-field" placeholder="e.g. ROOM #A82F91" />
+          <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button id="join-cancel" class="btn btn-dark">Cancel</button>
+            <button id="join-enter" class="btn btn-gold">Enter Room</button>
+          </div>
+        </div>
+      `;
+      document.getElementById("app-container").appendChild(modal);
+
+      modal.querySelector("#join-cancel").onclick = () => modal.remove();
+      modal.querySelector("#join-enter").onclick = () => {
+        let code = modal.querySelector("#join-room-code").value.trim().toUpperCase();
+        if (!code.startsWith("ROOM")) code = "ROOM #" + code.replace("#", "");
+        modal.remove();
+        createNewRoom("1v1", 2000, 2, code);
+      };
+    }
+
+    // ==========================================
+    // MATCH ROOM VIEW
+    // ==========================================
+    function renderRoomView() {
+      const container = document.getElementById("main-view");
+      container.className = "view-content no-bottom-pad";
+
+      container.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+          <button id="btn-room-back" class="btn btn-dark btn-sm">← Back</button>
+          <h3 class="gold-title" style="font-size: 16px;">MATCH LOBBY</h3>
+        </div>
+
+        <div class="card card-gold" style="text-align: center; padding: 24px 16px;">
+          <h2 class="gold-title" style="font-size: 22px; margin-bottom: 6px;">${currentRoom.roomId}</h2>
+          <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 18px;">
+            🪙 Entry: <strong>${formatNumber(currentRoom.entryAmount)} Coins</strong> &nbsp;•&nbsp; ⏱️ <strong>${currentRoom.durationMinutes} Min</strong>
+          </p>
+
+          <p style="color: var(--text-muted); font-size: 12px; font-weight: 700; margin-bottom: 14px;">
+            LINEUP (${currentRoom.mode === '2v2' ? '2 VS 2 TEAMS' : '1 VS 1 HEAD TO HEAD'})
+          </p>
+
+          <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 24px;">
+            ${currentRoom.players.map(p => `
+              <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                <div class="avatar avatar-lg" style="background: ${getAvatarGradient(p.name)};">
+                  ${p.name.slice(0, 2).toUpperCase()}
+                </div>
+                <p style="font-weight: 700; font-size: 13px;">${p.name}</p>
+                <span style="font-size: 10px; color: var(--gold);">${p.team === 1 ? 'Team 1' : 'Team 2'}</span>
+              </div>
+            `).join('<span style="font-weight: 800; color: var(--gold); font-size: 18px;">VS</span>')}
+          </div>
+
+          <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 18px;">
+            Coins will be deducted atomically from your balance upon match start.
+          </p>
+
+          <button id="btn-start-game" class="btn btn-gold btn-block" style="height: 52px; font-size: 16px;">
+            START GAME
+          </button>
+        </div>
+      `;
+
+      document.getElementById("btn-room-back").onclick = () => navigateTo("/play");
+      document.getElementById("btn-start-game").onclick = () => {
+        // Atomic coin deduction
+        const users = getStorage("users", []);
+        const u = users.find(x => x.id === currentUser.id);
+        if (u.coinBalance < currentRoom.entryAmount) {
+          return showToast("Insufficient coins!");
+        }
+
+        const prev = u.coinBalance;
+        u.coinBalance -= currentRoom.entryAmount;
+        setStorage("users", users);
+        currentUser.coinBalance = u.coinBalance;
+        setStorage("current_user", currentUser);
+
+        // Record Entry Txn
+        const txns = getStorage("transactions", []);
+        txns.unshift({
+          transactionId: "TXN-" + Math.random().toString(36).substring(2, 9).toUpperCase(),
+          userId: u.id,
+          userPlayerId: u.playerId,
+          type: "MATCH_ENTRY",
+          amount: -currentRoom.entryAmount,
+          previousBalance: prev,
+          newBalance: u.coinBalance,
+          description: "Entry fee for " + currentRoom.roomId,
+          createdAt: Date.now()
+        });
+        setStorage("transactions", txns);
+
+        navigateTo("/game");
+      };
+    }
+
+    // ==========================================
+    // PLAYABLE POOL GAME & 2D PHYSICS ENGINE
+    // ==========================================
+    function renderGameView() {
+      const container = document.getElementById("main-view");
+      container.className = "view-content no-bottom-pad";
+      container.style.padding = "8px";
+
+      container.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <button id="btn-leave-match" class="btn btn-dark btn-sm">← Forfeit</button>
+          <div class="coin-badge" id="match-timer-badge" style="border-color: var(--emerald); font-size: 13px; padding: 4px 12px;">
+            ⏱️ <span id="game-timer">02:00</span>
+          </div>
+          <div class="coin-badge" style="font-size: 13px; padding: 4px 12px;">
+            🪙 Pot: ${formatNumber(currentRoom.entryAmount * 2)}
+          </div>
+        </div>
+
+        <!-- HUD -->
+        <div class="card" style="padding: 8px 12px; margin-bottom: 6px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div id="hud-p1" style="display: flex; align-items: center; gap: 8px;">
+              <div class="avatar avatar-sm" style="background: ${getAvatarGradient(currentRoom.players[0].name)};">
+                ${currentRoom.players[0].name.slice(0, 2).toUpperCase()}
+              </div>
+              <div>
+                <p id="p1-name" style="font-weight: 700; font-size: 12px; color: var(--gold);">${currentRoom.players[0].name}</p>
+                <p id="p1-group" style="color: var(--text-muted); font-size: 10px;">Open Table</p>
+              </div>
+            </div>
+
+            <div id="turn-banner" style="background: #0f2218; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 800; color: var(--gold);">
+              YOUR SHOT
+            </div>
+
+            <div id="hud-p2" style="display: flex; align-items: center; gap: 8px;">
+              <div style="text-align: right;">
+                <p id="p2-name" style="font-weight: 700; font-size: 12px;">${currentRoom.players[1].name}</p>
+                <p id="p2-group" style="color: var(--text-muted); font-size: 10px;">Open Table</p>
+              </div>
+              <div class="avatar avatar-sm" style="background: ${getAvatarGradient(currentRoom.players[1].name)};">
+                ${currentRoom.players[1].name.slice(0, 2).toUpperCase()}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p id="game-status-ticker" style="color: var(--emerald); font-size: 12px; font-weight: 600; text-align: center; margin-bottom: 6px;">
+          Drag to aim, pull power slider and shoot!
+        </p>
+
+        <!-- Canvas and Controls -->
+        <div style="flex: 1; display: flex; gap: 8px; align-items: center; justify-content: center; position: relative;">
+          <div id="canvas-wrap">
+            <canvas id="pool-canvas" width="360" height="600"></canvas>
+          </div>
+
+          <!-- Power Slider Column -->
+          <div class="card" style="width: 60px; height: 95%; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 8px 4px; margin-bottom: 0;">
+            <span style="color: var(--gold); font-size: 10px; font-weight: 800;">PWR</span>
+            <span id="power-display" style="font-size: 11px; font-weight: 700;">50%</span>
+            <input type="range" id="power-slider" min="10" max="100" value="50" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; width: 28px; height: 60%;" />
+            <button id="btn-shoot-ball" class="btn btn-gold" style="width: 46px; height: 46px; border-radius: 50%; padding: 0; font-size: 20px;">
+              ⚡
+            </button>
+          </div>
+        </div>
+      `;
+
+      initGameEngine();
+    }
+
+    function initGameEngine() {
+      const canvas = document.getElementById("pool-canvas");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+
+      const width = 360;
+      const height = 600;
+      const cushion = 28;
+      const playMinX = cushion;
+      const playMaxX = width - cushion;
+      const playMinY = cushion;
+      const playMaxY = height - cushion;
+
+      const pockets = [
+        { x: playMinX + 2, y: playMinY + 2, r: 24 },
+        { x: width / 2, y: playMinY - 2, r: 22 },
+        { x: playMaxX - 2, y: playMinY + 2, r: 24 },
+        { x: playMinX + 2, y: playMaxY - 2, r: 24 },
+        { x: width / 2, y: playMaxY + 2, r: 22 },
+        { x: playMaxX - 2, y: playMaxY - 2, r: 24 }
+      ];
+
+      // Ball setup
+      const ballRadius = 12.5;
+      const BALL_COLORS = [
+        "#ffffff", // 0: Cue
+        "#facc15", // 1: Solid Yellow
+        "#3b82f6", // 2: Solid Blue
+        "#ef4444", // 3: Solid Red
+        "#a855f7", // 4: Solid Purple
+        "#f97316", // 5: Solid Orange
+        "#22c55e", // 6: Solid Green
+        "#881337", // 7: Solid Maroon
+        "#0f172a", // 8: Eight Black
+        "#facc15", // 9: Stripe Yellow
+        "#3b82f6", // 10: Stripe Blue
+        "#ef4444", // 11: Stripe Red
+        "#a855f7", // 12: Stripe Purple
+        "#f97316", // 13: Stripe Orange
+        "#22c55e", // 14: Stripe Green
+        "#881337"  // 15: Stripe Maroon
+      ];
+
+      let balls = [];
+      function rackBalls() {
+        balls = [];
+        // Cue ball
+        balls.push({ id: 0, x: width / 2, y: playMaxY - 120, vx: 0, vy: 0, r: ballRadius, color: "#fff", type: "CUE", pocketed: false, sinking: 0 });
+
+        // Triangle rack
+        const apexY = playMinY + 140;
+        const rowSpacing = ballRadius * 1.732;
+        const colSpacing = ballRadius * 2.05;
+
+        const order = [1, 9, 2, 10, 8, 3, 4, 11, 12, 5, 13, 6, 14, 7, 15];
+        let idx = 0;
+        for (let row = 0; row <= 4; row++) {
+          const startX = width / 2 - (row * colSpacing / 2);
+          const y = apexY + row * rowSpacing;
+          for (let col = 0; col <= row; col++) {
+            if (idx < order.length) {
+              const id = order[idx];
+              const type = id === 8 ? "EIGHT" : (id <= 7 ? "SOLID" : "STRIPE");
+              balls.push({
+                id: id,
+                x: startX + col * colSpacing,
+                y: y,
+                vx: 0,
+                vy: 0,
+                r: ballRadius,
+                color: BALL_COLORS[id],
+                type: type,
+                pocketed: false,
+                sinking: 0
+              });
+              idx++;
+            }
+          }
+        }
+      }
+
+      rackBalls();
+
+      let isMoving = false;
+      let aimAngle = -Math.PI / 2;
+      let power = 0.5;
+      let turnIndex = 0; // 0 = Player 1, 1 = Challenger
+      let gameOver = false;
+      let sunkSolids = [];
+      let sunkStripes = [];
+      let p1Group = "UNASSIGNED";
+      let p2Group = "UNASSIGNED";
+      let timeRemaining = currentRoom.durationMinutes * 60;
+      let firstContact = null;
+      let scratchedThisShot = false;
+
+      // Timer loop
+      const timerInterval = setInterval(() => {
+        if (gameOver) return clearInterval(timerInterval);
+        timeRemaining--;
+        const m = Math.floor(timeRemaining / 60);
+        const s = timeRemaining % 60;
+        const timeEl = document.getElementById("game-timer");
+        if (timeEl) {
+          timeEl.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+          if (timeRemaining < 30) {
+            document.getElementById("match-timer-badge").style.borderColor = "var(--loss-red)";
+          }
+        }
+        if (timeRemaining <= 0) {
+          clearInterval(timerInterval);
+          finishMatch(currentRoom.players[0], "Match timer expired! Victory on points.");
+        }
+      }, 1000);
+
+      // Aim input on canvas
+      function updateAimFromTouch(e) {
+        if (isMoving || gameOver) return;
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const x = (clientX - rect.left) * (width / rect.width);
+        const y = (clientY - rect.top) * (height / rect.height);
+        const cue = balls[0];
+        if (cue && !cue.pocketed) {
+          aimAngle = Math.atan2(y - cue.y, x - cue.x);
+        }
+      }
+
+      canvas.addEventListener("mousedown", updateAimFromTouch);
+      canvas.addEventListener("mousemove", (e) => { if (e.buttons === 1) updateAimFromTouch(e); });
+      canvas.addEventListener("touchstart", (e) => { e.preventDefault(); updateAimFromTouch(e); }, { passive: false });
+      canvas.addEventListener("touchmove", (e) => { e.preventDefault(); updateAimFromTouch(e); }, { passive: false });
+
+      // Power controls
+      const slider = document.getElementById("power-slider");
+      const powerDisp = document.getElementById("power-display");
+      slider.oninput = () => {
+        power = parseInt(slider.value) / 100;
+        powerDisp.textContent = `${slider.value}%`;
+      };
+
+      document.getElementById("btn-shoot-ball").onclick = () => {
+        if (!isMoving && !gameOver && turnIndex === 0) {
+          shootBall(power);
+        }
+      };
+
+      function shootBall(pwr) {
+        const cue = balls[0];
+        if (!cue || cue.pocketed) return;
+        const speed = pwr * 32;
+        cue.vx = Math.cos(aimAngle) * speed;
+        cue.vy = Math.sin(aimAngle) * speed;
+        isMoving = true;
+        firstContact = null;
+        scratchedThisShot = false;
+        document.getElementById("game-status-ticker").textContent = "Shot executed!";
+      }
+
+      // Physics loop
+      function updatePhysics() {
+        let anyMoving = false;
+        const friction = 0.985;
+        const stopLimit = 0.15;
+
+        for (let i = 0; i < balls.length; i++) {
+          const b = balls[i];
+          if (b.pocketed) continue;
+
+          // Sinking
+          if (b.sinking > 0) {
+            b.sinking += 0.05;
+            b.vx *= 0.5;
+            b.vy *= 0.5;
+            if (b.sinking >= 1) {
+              b.pocketed = true;
+              handlePocketed(b);
+            }
+            anyMoving = true;
+            continue;
+          }
+
+          b.x += b.vx;
+          b.y += b.vy;
+          b.vx *= friction;
+          b.vy *= friction;
+
+          const spd = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+          if (spd < stopLimit) {
+            b.vx = 0;
+            b.vy = 0;
+          } else {
+            anyMoving = true;
+          }
+
+          // Rail bounce
+          if (b.x - b.r < playMinX) { b.x = playMinX + b.r; b.vx = -b.vx * 0.85; }
+          else if (b.x + b.r > playMaxX) { b.x = playMaxX - b.r; b.vx = -b.vx * 0.85; }
+
+          if (b.y - b.r < playMinY) { b.y = playMinY + b.r; b.vy = -b.vy * 0.85; }
+          else if (b.y + b.r > playMaxY) { b.y = playMaxY - b.r; b.vy = -b.vy * 0.85; }
+
+          // Pocket check
+          for (let p of pockets) {
+            const dx = b.x - p.x;
+            const dy = b.y - p.y;
+            if (Math.sqrt(dx * dx + dy * dy) < p.r + 4) {
+              b.sinking = 0.05;
+              anyMoving = true;
+              break;
+            }
+          }
+        }
+
+        // Ball collisions
+        for (let i = 0; i < balls.length; i++) {
+          const b1 = balls[i];
+          if (b1.pocketed || b1.sinking > 0) continue;
+
+          for (let j = i + 1; j < balls.length; j++) {
+            const b2 = balls[j];
+            if (b2.pocketed || b2.sinking > 0) continue;
+
+            const dx = b2.x - b1.x;
+            const dy = b2.y - b1.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const minDist = b1.r + b2.r;
+
+            if (dist < minDist && dist > 0) {
+              if ((b1.id === 0 || b2.id === 0) && !firstContact) {
+                firstContact = b1.id === 0 ? b2 : b1;
+              }
+
+              const overlap = 0.5 * (minDist - dist);
+              const nx = dx / dist;
+              const ny = dy / dist;
+
+              b1.x -= nx * overlap;
+              b1.y -= ny * overlap;
+              b2.x += nx * overlap;
+              b2.y += ny * overlap;
+
+              const kx = b1.vx - b2.vx;
+              const ky = b1.vy - b2.vy;
+              const p = nx * kx + ny * ky;
+
+              b1.vx -= p * nx * 0.95;
+              b1.vy -= p * ny * 0.95;
+              b2.vx += p * nx * 0.95;
+              b2.vy += p * ny * 0.95;
+              anyMoving = true;
+            }
+          }
+        }
+
+        if (isMoving && !anyMoving) {
+          isMoving = false;
+          onShotStop();
+        }
+      }
+
+      function handlePocketed(b) {
+        if (b.type === "CUE") {
+          scratchedThisShot = true;
+        } else if (b.type === "SOLID") {
+          sunkSolids.push(b.id);
+        } else if (b.type === "STRIPE") {
+          sunkStripes.push(b.id);
+        } else if (b.type === "EIGHT") {
+          // 8 ball potted
+          const activeP = currentRoom.players[turnIndex];
+          const oppP = currentRoom.players[turnIndex === 0 ? 1 : 0];
+          const ownGroup = turnIndex === 0 ? p1Group : p2Group;
+          const ownCleared = ownGroup === "SOLIDS" ? sunkSolids.length >= 7 : (ownGroup === "STRIPES" ? sunkStripes.length >= 7 : false);
+
+          if (ownCleared && !scratchedThisShot) {
+            finishMatch(activeP, `${activeP.name} legally potted the 8-Ball!`);
+          } else {
+            finishMatch(oppP, scratchedThisShot ? "Scratched while potting the 8-Ball!" : "Potted 8-Ball before clearing group!");
+          }
+        }
+      }
+
+      function onShotStop() {
+        if (gameOver) return;
+
+        // Respawn cue ball if scratched
+        if (scratchedThisShot) {
+          const cue = balls[0];
+          cue.pocketed = false;
+          cue.sinking = 0;
+          cue.x = width / 2;
+          cue.y = playMaxY - 120;
+          cue.vx = 0;
+          cue.vy = 0;
+          document.getElementById("game-status-ticker").textContent = "Foul: Cue ball scratched! Respawned.";
+        }
+
+        // Assign groups if unassigned
+        if (p1Group === "UNASSIGNED") {
+          if (sunkSolids.length > 0 && sunkStripes.length === 0) {
+            p1Group = turnIndex === 0 ? "SOLIDS" : "STRIPES";
+            p2Group = turnIndex === 0 ? "STRIPES" : "SOLIDS";
+          } else if (sunkStripes.length > 0 && sunkSolids.length === 0) {
+            p1Group = turnIndex === 0 ? "STRIPES" : "SOLIDS";
+            p2Group = turnIndex === 0 ? "SOLIDS" : "STRIPES";
+          }
+          document.getElementById("p1-group").textContent = p1Group;
+          document.getElementById("p2-group").textContent = p2Group;
+        }
+
+        // Switch turn
+        turnIndex = turnIndex === 0 ? 1 : 0;
+        const activeName = currentRoom.players[turnIndex].name;
+        document.getElementById("turn-banner").textContent = turnIndex === 0 ? "YOUR SHOT" : `${activeName.toUpperCase()}'S SHOT`;
+        document.getElementById("hud-p1").style.opacity = turnIndex === 0 ? "1" : "0.5";
+        document.getElementById("hud-p2").style.opacity = turnIndex === 1 ? "1" : "0.5";
+
+        // Bot shot trigger
+        if (turnIndex === 1) {
+          setTimeout(() => {
+            if (!gameOver) {
+              const cue = balls[0];
+              const target = balls.find(b => !b.pocketed && b.id !== 0);
+              if (target && cue) {
+                aimAngle = Math.atan2(target.y - cue.y, target.x - cue.x);
+                shootBall(0.55);
+              }
+            }
+          }, 1200);
+        }
+      }
+
+      function finishMatch(winner, reason) {
+        gameOver = true;
+        clearInterval(timerInterval);
+
+        // Record Match
+        const pot = currentRoom.entryAmount * 2;
+        const matches = getStorage("matches", []);
+        const matchRecord = {
+          matchId: "MTH-" + Math.random().toString(36).substring(2, 8).toUpperCase(),
+          roomId: currentRoom.roomId,
+          mode: currentRoom.mode,
+          playersJson: currentRoom.players.map(p => p.name).join(", "),
+          entryAmount: currentRoom.entryAmount,
+          durationMinutes: currentRoom.durationMinutes,
+          winnerPlayerId: winner.id,
+          winnerName: winner.name,
+          coinsWonLost: pot - currentRoom.entryAmount,
+          endedAt: Date.now()
+        };
+        matches.unshift(matchRecord);
+        setStorage("matches", matches);
+
+        // Winner reward if user
+        const isUserWinner = winner.id === currentUser.playerId;
+        if (isUserWinner) {
+          const users = getStorage("users", []);
+          const u = users.find(x => x.id === currentUser.id);
+          u.coinBalance += pot;
+          u.matchesPlayed++;
+          u.matchesWon++;
+          setStorage("users", users);
+          currentUser.coinBalance = u.coinBalance;
+          setStorage("current_user", currentUser);
+
+          const txns = getStorage("transactions", []);
+          txns.unshift({
+            transactionId: "TXN-" + Math.random().toString(36).substring(2, 9).toUpperCase(),
+            userId: u.id,
+            userPlayerId: u.playerId,
+            type: "MATCH_RESULT",
+            amount: pot,
+            previousBalance: u.coinBalance - pot,
+            newBalance: u.coinBalance,
+            description: "Victory pot reward in " + currentRoom.roomId,
+            createdAt: Date.now()
+          });
+          setStorage("transactions", txns);
+        } else {
+          const users = getStorage("users", []);
+          const u = users.find(x => x.id === currentUser.id);
+          u.matchesPlayed++;
+          u.matchesLost++;
+          setStorage("users", users);
+        }
+
+        // Show Game Over Modal
+        const modal = document.createElement("div");
+        modal.className = "modal-backdrop";
+        modal.innerHTML = `
+          <div class="modal-card" style="text-align: center;">
+            <h2 class="gold-title" style="font-size: 24px; margin-bottom: 8px;">
+              ${isUserWinner ? '🏆 VICTORY!' : 'MATCH FINISHED'}
+            </h2>
+            <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">${reason}</p>
+            <div class="avatar avatar-lg" style="margin: 0 auto 10px; background: ${getAvatarGradient(winner.name)};">
+              ${winner.name.slice(0, 2).toUpperCase()}
+            </div>
+            <p style="font-size: 16px; font-weight: 800; margin-bottom: 8px;">Winner: ${winner.name}</p>
+            <p style="color: ${isUserWinner ? 'var(--emerald)' : 'var(--loss-red)'}; font-size: 16px; font-weight: 800; margin-bottom: 20px;">
+              ${isUserWinner ? '+' + formatNumber(pot) + ' Coins' : '-' + formatNumber(currentRoom.entryAmount) + ' Coins'}
+            </p>
+            <button id="btn-over-return" class="btn btn-gold btn-block">BACK TO LOBBY</button>
+          </div>
+        `;
+        document.getElementById("app-container").appendChild(modal);
+        modal.querySelector("#btn-over-return").onclick = () => {
+          modal.remove();
+          navigateTo("/play");
+        };
+      }
+
+      // Forfeit handler
+      document.getElementById("btn-leave-match").onclick = () => {
+        if (confirm("Are you sure you want to forfeit? Your entry fee will not be returned.")) {
+          finishMatch(currentRoom.players[1], `${currentUser.username} forfeited the match.`);
+        }
+      };
+
+      // Draw loop
+      function drawTable() {
+        ctx.clearRect(0, 0, width, height);
+
+        // Wood rail
+        const railGrad = ctx.createRadialGradient(width / 2, height / 2, 40, width / 2, height / 2, height);
+        railGrad.addColorStop(0, "#4a2810");
+        railGrad.addColorStop(1, "#261205");
+        ctx.fillStyle = railGrad;
+        ctx.fillRect(0, 0, width, height);
+
+        // Felt cloth
+        const feltGrad = ctx.createLinearGradient(0, playMinY, 0, playMaxY);
+        feltGrad.addColorStop(0, "#0e693f");
+        feltGrad.addColorStop(0.5, "#094e2e");
+        feltGrad.addColorStop(1, "#0e693f");
+        ctx.fillStyle = feltGrad;
+        ctx.fillRect(playMinX, playMinY, playMaxX - playMinX, playMaxY - playMinY);
+
+        // Head string line
+        ctx.strokeStyle = "rgba(255,255,255,0.15)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(playMinX, playMaxY - 120);
+        ctx.lineTo(playMaxX, playMaxY - 120);
+        ctx.stroke();
+
+        // Pockets
+        for (let p of pockets) {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r + 3, 0, Math.PI * 2);
+          ctx.fillStyle = "#1e140c";
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = "#0a0a0a";
+          ctx.fill();
+
+          ctx.strokeStyle = "#c5a059";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+
+        // Aim line & Cue stick
+        const cue = balls[0];
+        if (cue && !cue.pocketed && !isMoving && !gameOver && turnIndex === 0) {
+          const aimLen = 220;
+          ctx.beginPath();
+          ctx.moveTo(cue.x, cue.y);
+          ctx.lineTo(cue.x + Math.cos(aimAngle) * aimLen, cue.y + Math.sin(aimAngle) * aimLen);
+          ctx.strokeStyle = "rgba(255,255,255,0.7)";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 4]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Ghost ball
+          ctx.beginPath();
+          ctx.arc(cue.x + Math.cos(aimAngle) * 50, cue.y + Math.sin(aimAngle) * 50, cue.r, 0, Math.PI * 2);
+          ctx.strokeStyle = "rgba(255,255,255,0.35)";
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          // Cue stick
+          const pullBack = 15 + power * 35;
+          const stickStartDist = cue.r + pullBack;
+          const stickEndDist = stickStartDist + 140;
+          ctx.beginPath();
+          ctx.moveTo(cue.x - Math.cos(aimAngle) * stickStartDist, cue.y - Math.sin(aimAngle) * stickStartDist);
+          ctx.lineTo(cue.x - Math.cos(aimAngle) * stickEndDist, cue.y - Math.sin(aimAngle) * stickEndDist);
+          ctx.strokeStyle = "#8d5b4c";
+          ctx.lineWidth = 5.5;
+          ctx.lineCap = "round";
+          ctx.stroke();
+        }
+
+        // Draw balls
+        for (let b of balls) {
+          if (b.pocketed) continue;
+          const r = b.r * (1 - b.sinking * 0.7);
+
+          // Shadow
+          ctx.beginPath();
+          ctx.arc(b.x + 2, b.y + 2, r, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(0,0,0,0.4)";
+          ctx.fill();
+
+          // Base ball sphere
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
+          ctx.fillStyle = b.color;
+          ctx.fill();
+
+          // Stripe pattern
+          if (b.type === "STRIPE") {
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, r * 0.65, 0, Math.PI * 2);
+            ctx.fillStyle = "#ffffff";
+            ctx.fill();
+          }
+
+          // Number circle
+          if (b.id !== 0) {
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, r * 0.42, 0, Math.PI * 2);
+            ctx.fillStyle = "#ffffff";
+            ctx.fill();
+
+            ctx.fillStyle = "#000000";
+            ctx.font = `bold ${Math.round(r * 0.65)}px sans-serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(b.id, b.x, b.y + 0.5);
+          }
+
+          // Specular 3D highlight
+          const spec = ctx.createRadialGradient(b.x - r * 0.35, b.y - r * 0.35, 1, b.x, b.y, r);
+          spec.addColorStop(0, "rgba(255,255,255,0.6)");
+          spec.addColorStop(1, "rgba(255,255,255,0)");
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
+          ctx.fillStyle = spec;
+          ctx.fill();
+        }
+
+        updatePhysics();
+        if (!gameOver) requestAnimationFrame(drawTable);
+      }
+
+      requestAnimationFrame(drawTable);
+    }
+
+    // ==========================================
+    // LEADERBOARD VIEW
+    // ==========================================
+    function renderLeaderboardView() {
+      const container = document.getElementById("main-view");
+      container.className = "view-content";
+
+      const users = getStorage("users", [])
+        .filter(u => u.role === "USER")
+        .sort((a, b) => b.matchesWon - a.matchesWon || b.coinBalance - a.coinBalance);
+
+      container.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px;">
+          <span style="font-size: 22px;">🏆</span>
+          <h2 class="gold-title" style="font-size: 20px;">LEADERBOARD</h2>
+        </div>
+
+        <div style="display: flex; background: #0c1d15; border-radius: 10px; padding: 3px; margin-bottom: 16px; border: 1px solid var(--bg-card-border);">
+          <div class="chip active" style="flex: 1; justify-content: center;">Global</div>
+          <div class="chip" style="flex: 1; justify-content: center;">Weekly</div>
+          <div class="chip" style="flex: 1; justify-content: center;">Monthly</div>
+        </div>
+
+        <!-- Top Podium -->
+        ${users.length >= 1 ? `
+          <div style="display: flex; justify-content: space-around; align-items: flex-end; margin-bottom: 20px;">
+            ${users.length > 1 ? `
+              <div style="text-align: center;">
+                <span style="color: #c0c0c0; font-size: 11px; font-weight: 700;">🥈 2nd</span>
+                <div class="avatar" style="margin: 4px auto; border-color: #c0c0c0; background: ${getAvatarGradient(users[1].username)};">
+                  ${users[1].username.slice(0, 2).toUpperCase()}
+                </div>
+                <p style="font-size: 12px; font-weight: 700;">${users[1].username}</p>
+                <span style="color: var(--gold); font-size: 11px;">${users[1].matchesWon} Wins</span>
+              </div>
+            ` : ''}
+
+            <div style="text-align: center;">
+              <span style="color: var(--gold); font-size: 12px; font-weight: 800;">👑 1st</span>
+              <div class="avatar avatar-lg" style="margin: 4px auto; background: ${getAvatarGradient(users[0].username)};">
+                ${users[0].username.slice(0, 2).toUpperCase()}
+              </div>
+              <p style="font-size: 14px; font-weight: 800;">${users[0].username}</p>
+              <span style="color: var(--gold); font-size: 12px; font-weight: 700;">${users[0].matchesWon} Wins</span>
+            </div>
+
+            ${users.length > 2 ? `
+              <div style="text-align: center;">
+                <span style="color: #cd7f32; font-size: 11px; font-weight: 700;">🥉 3rd</span>
+                <div class="avatar" style="margin: 4px auto; border-color: #cd7f32; background: ${getAvatarGradient(users[2].username)};">
+                  ${users[2].username.slice(0, 2).toUpperCase()}
+                </div>
+                <p style="font-size: 12px; font-weight: 700;">${users[2].username}</p>
+                <span style="color: var(--gold); font-size: 11px;">${users[2].matchesWon} Wins</span>
+              </div>
+            ` : ''}
+          </div>
+        ` : ''}
+
+        <!-- List -->
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          ${users.map((u, i) => `
+            <div class="card" style="padding: 10px 14px; margin-bottom: 0; display: flex; justify-content: space-between; align-items: center; ${i === 0 ? 'border-color: var(--gold); background: #153123;' : ''}">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 24px; height: 24px; border-radius: 50%; background: ${i === 0 ? 'var(--gold)' : (i === 1 ? '#c0c0c0' : (i === 2 ? '#cd7f32' : '#1b3828'))}; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: ${i < 3 ? '#000' : '#fff'};">
+                  ${i + 1}
+                </div>
+                <div class="avatar avatar-sm" style="background: ${getAvatarGradient(u.username)};">
+                  ${u.username.slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <p style="font-weight: 700; font-size: 13px;">${u.username}</p>
+                  <p style="color: var(--text-muted); font-size: 11px;">${u.playerId}</p>
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <p style="color: var(--emerald); font-weight: 700; font-size: 12px;">${u.matchesWon} Won / ${u.matchesPlayed} Matches</p>
+                <span style="color: var(--gold); font-size: 12px; font-weight: 800;">🪙 ${formatNumber(u.coinBalance)}</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    // ==========================================
+    // MATCH HISTORY VIEW
+    // ==========================================
+    function renderHistoryView() {
+      const container = document.getElementById("main-view");
+      container.className = "view-content";
+
+      let activeFilter = "ALL";
+      const matches = getStorage("matches", []).filter(m => m.playersJson.includes(currentUser.playerId));
+
+      function renderList() {
+        const now = Date.now();
+        const filtered = matches.filter(m => {
+          const isWin = m.winnerPlayerId === currentUser.playerId;
+          if (activeFilter === "WON") return isWin;
+          if (activeFilter === "LOST") return !isWin;
+          if (activeFilter === "TODAY") return m.endedAt >= now - 86400000;
+          return true;
+        });
+
+        const listContainer = document.getElementById("history-list-content");
+        if (filtered.length === 0) {
+          listContainer.innerHTML = `<p style="text-align: center; color: var(--text-muted); padding: 40px 0;">No matches found for selected filter.</p>`;
+          return;
+        }
+
+        listContainer.innerHTML = filtered.map(m => {
+          const isWin = m.winnerPlayerId === currentUser.playerId;
+          const dateStr = new Date(m.endedAt).toLocaleDateString() + " " + new Date(m.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          return `
+            <div class="card" style="margin-bottom: 8px; border-left: 4px solid ${isWin ? 'var(--emerald)' : 'var(--loss-red)'};">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span style="font-weight: 800; font-size: 13px; color: ${isWin ? 'var(--emerald)' : 'var(--loss-red)'};">
+                  ${isWin ? 'VICTORY' : 'DEFEAT'} • ${m.mode}
+                </span>
+                <span style="font-weight: 800; font-size: 13px; color: ${isWin ? 'var(--emerald)' : 'var(--loss-red)'};">
+                  ${isWin ? '+' + formatNumber(m.coinsWonLost) : '-' + formatNumber(m.entryAmount)} Coins
+                </span>
+              </div>
+              <p style="color: var(--text-secondary); font-size: 11px;">${m.roomId} • ${m.playersJson}</p>
+              <p style="color: var(--text-muted); font-size: 10px; margin-top: 4px;">${dateStr} • Duration: ${m.durationMinutes} Min</p>
+            </div>
+          `;
+        }).join('');
+      }
+
+      container.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px;">
+          <span style="font-size: 20px;">📜</span>
+          <h2 class="gold-title" style="font-size: 20px;">MATCH HISTORY</h2>
+        </div>
+
+        <div style="display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px;">
+          <div class="chip active" data-f="ALL">All</div>
+          <div class="chip" data-f="WON">Won</div>
+          <div class="chip" data-f="LOST">Lost</div>
+          <div class="chip" data-f="TODAY">Today</div>
+        </div>
+
+        <div id="history-list-content"></div>
+      `;
+
+      container.querySelectorAll(".chip").forEach(chip => {
+        chip.onclick = () => {
+          container.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+          chip.classList.add("active");
+          activeFilter = chip.getAttribute("data-f");
+          renderList();
+        };
+      });
+
+      renderList();
+    }
+
+    // ==========================================
+    // PROFILE VIEW
+    // ==========================================
+    function renderProfileView() {
+      const container = document.getElementById("main-view");
+      container.className = "view-content";
+
+      const users = getStorage("users", []);
+      currentUser = users.find(u => u.id === currentUser.id) || currentUser;
+
+      const txns = getStorage("transactions", []).filter(t => t.userId === currentUser.id);
+      const winRate = currentUser.matchesPlayed > 0 ? ((currentUser.matchesWon / currentUser.matchesPlayed) * 100).toFixed(1) + "%" : "0.0%";
+
+      container.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <h2 class="gold-title" style="font-size: 20px;">PLAYER PROFILE</h2>
+          <button id="btn-logout" class="btn btn-dark btn-sm" style="color: var(--loss-red);">Logout</button>
+        </div>
+
+        <div class="card card-gold">
+          <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 14px;">
+            <div class="avatar avatar-lg" style="background: ${getAvatarGradient(currentUser.username)};">
+              ${currentUser.username.slice(0, 2).toUpperCase()}
+            </div>
+            <div>
+              <h3 style="font-size: 19px;">${currentUser.username}</h3>
+              <p style="color: var(--text-secondary); font-size: 13px;">ID: ${currentUser.playerId}</p>
+              <p style="color: var(--text-muted); font-size: 11px;">${currentUser.emailOrPhone}</p>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--bg-card-border); padding-top: 10px;">
+            <span style="font-size: 12px; color: ${currentUser.isOnline ? 'var(--emerald)' : 'var(--text-muted)'};">
+              ${currentUser.isOnline ? '🟢 Status: Available' : '⚪ Status: Invisible'}
+            </span>
+            <button id="btn-toggle-status" class="btn btn-dark btn-sm">Toggle Status</button>
+          </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; margin-bottom: 14px;">
+          <div class="card" style="padding: 8px; text-align: center; margin-bottom: 0;">
+            <p style="color: var(--text-muted); font-size: 10px;">Coins</p>
+            <p style="color: var(--gold); font-weight: 800; font-size: 12px;">${formatNumber(currentUser.coinBalance)}</p>
+          </div>
+          <div class="card" style="padding: 8px; text-align: center; margin-bottom: 0;">
+            <p style="color: var(--text-muted); font-size: 10px;">Matches</p>
+            <p style="color: var(--text-primary); font-weight: 800; font-size: 12px;">${currentUser.matchesPlayed}</p>
+          </div>
+          <div class="card" style="padding: 8px; text-align: center; margin-bottom: 0;">
+            <p style="color: var(--text-muted); font-size: 10px;">Won/Lost</p>
+            <p style="color: var(--emerald); font-weight: 800; font-size: 12px;">${currentUser.matchesWon}/${currentUser.matchesLost}</p>
+          </div>
+          <div class="card" style="padding: 8px; text-align: center; margin-bottom: 0;">
+            <p style="color: var(--text-muted); font-size: 10px;">Win Rate</p>
+            <p style="color: var(--gold); font-weight: 800; font-size: 12px;">${winRate}</p>
+          </div>
+        </div>
+
+        <!-- Coin Ledger -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <p class="gold-title" style="font-size: 12px;">COIN TRANSACTION HISTORY</p>
+          <span style="color: var(--text-muted); font-size: 11px;">${txns.length} records</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          ${txns.map(t => {
+            const isPos = t.amount > 0;
+            const dateStr = new Date(t.createdAt).toLocaleDateString() + " " + new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            return `
+              <div class="card" style="padding: 10px; margin-bottom: 0;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                  <span style="font-weight: 700; font-size: 12px;">${t.type.replace(/_/g, ' ')}</span>
+                  <span style="font-weight: 800; font-size: 12px; color: ${isPos ? 'var(--emerald)' : 'var(--loss-red)'};">
+                    ${isPos ? '+' : ''}${formatNumber(t.amount)} Coins
+                  </span>
+                </div>
+                <p style="color: var(--text-secondary); font-size: 11px;">${t.description}</p>
+                <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 10px; color: var(--text-muted);">
+                  <span>Balance: ${formatNumber(t.previousBalance)} → ${formatNumber(t.newBalance)}</span>
+                  <span>${dateStr}</span>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+
+      document.getElementById("btn-toggle-status").onclick = () => {
+        currentUser.isOnline = !currentUser.isOnline;
+        const users = getStorage("users", []);
+        const u = users.find(x => x.id === currentUser.id);
+        u.isOnline = currentUser.isOnline;
+        setStorage("users", users);
+        setStorage("current_user", currentUser);
+        renderProfileView();
+      };
+
+      document.getElementById("btn-logout").onclick = () => {
+        const users = getStorage("users", []);
+        const u = users.find(x => x.id === currentUser.id);
+        if (u) u.isOnline = false;
+        setStorage("users", users);
+        currentUser = null;
+        setStorage("current_user", null);
+        showToast("Logged out successfully");
+        navigateTo("/login");
+      };
+    }
+
+    // ==========================================
+    // ADMIN CONSOLE VIEW
+    // ==========================================
+    function renderAdminDashboard() {
+      const container = document.getElementById("main-view");
+      container.className = "view-content no-bottom-pad";
+
+      let activeTab = 0; // 0: Overview, 1: Users, 2: Config, 3: Audit
+
+      function renderContent() {
+        const users = getStorage("users", []);
+        const matches = getStorage("matches", []);
+        const txns = getStorage("transactions", []);
+        const audit = getStorage("audit_logs", []);
+        const config = getStorage("config", {});
+
+        const totalCirc = users.reduce((acc, u) => acc + (u.coinBalance || 0), 0);
+        const awarded = txns.filter(t => t.amount > 0).reduce((acc, t) => acc + t.amount, 0);
+        const deducted = txns.filter(t => t.amount < 0).reduce((acc, t) => acc + Math.abs(t.amount), 0);
+
+        container.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div>
+              <h2 style="color: #ff9800; font-size: 18px;">ADMIN CONSOLE</h2>
+              <p style="color: var(--text-muted); font-size: 11px;">Logged in as ${adminSession.username}</p>
+            </div>
+            <button id="btn-admin-logout" class="btn btn-dark btn-sm" style="color: var(--loss-red);">Exit Admin</button>
+          </div>
+
+          <div style="display: flex; gap: 4px; margin-bottom: 14px; background: #0c1d15; padding: 3px; border-radius: 10px;">
+            <div class="chip ${activeTab === 0 ? 'active' : ''}" data-at="0" style="flex: 1; justify-content: center; font-size: 11px;">Overview</div>
+            <div class="chip ${activeTab === 1 ? 'active' : ''}" data-at="1" style="flex: 1; justify-content: center; font-size: 11px;">Users</div>
+            <div class="chip ${activeTab === 2 ? 'active' : ''}" data-at="2" style="flex: 1; justify-content: center; font-size: 11px;">Config</div>
+            <div class="chip ${activeTab === 3 ? 'active' : ''}" data-at="3" style="flex: 1; justify-content: center; font-size: 11px;">Audit</div>
+          </div>
+
+          <div id="admin-tab-body"></div>
+        `;
+
+        document.getElementById("btn-admin-logout").onclick = () => {
+          adminSession = null;
+          setStorage("admin_session", null);
+          showToast("Admin session ended");
+          navigateTo("/login");
+        };
+
+        container.querySelectorAll(".chip[data-at]").forEach(chip => {
+          chip.onclick = () => {
+            activeTab = parseInt(chip.getAttribute("data-at"));
+            renderContent();
+          };
+        });
+
+        const body = document.getElementById("admin-tab-body");
+
+        if (activeTab === 0) {
+          body.innerHTML = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <div class="card" style="padding: 12px; margin-bottom: 0;">
+                <p style="color: var(--text-muted); font-size: 11px;">Total Users</p>
+                <p style="color: var(--gold); font-size: 20px; font-weight: 800;">${users.filter(u => u.role === 'USER').length}</p>
+                <p style="color: var(--text-muted); font-size: 10px;">${users.filter(u => u.isOnline).length} Online</p>
+              </div>
+              <div class="card" style="padding: 12px; margin-bottom: 0;">
+                <p style="color: var(--text-muted); font-size: 11px;">Total Matches</p>
+                <p style="color: var(--gold); font-size: 20px; font-weight: 800;">${matches.length}</p>
+                <p style="color: var(--text-muted); font-size: 10px;">Completed</p>
+              </div>
+              <div class="card" style="padding: 12px; margin-bottom: 0;">
+                <p style="color: var(--text-muted); font-size: 11px;">Circulation</p>
+                <p style="color: var(--gold); font-size: 16px; font-weight: 800;">${formatNumber(totalCirc)}</p>
+                <p style="color: var(--text-muted); font-size: 10px;">Virtual coins</p>
+              </div>
+              <div class="card" style="padding: 12px; margin-bottom: 0;">
+                <p style="color: var(--text-muted); font-size: 11px;">Awarded</p>
+                <p style="color: var(--emerald); font-size: 16px; font-weight: 800;">${formatNumber(awarded)}</p>
+                <p style="color: var(--text-muted); font-size: 10px;">Total wins/bonus</p>
+              </div>
+            </div>
+          `;
+        } else if (activeTab === 1) {
+          body.innerHTML = `
+            <input type="text" id="admin-user-search" class="input-field" placeholder="Search by name, ID, phone..." style="margin-bottom: 10px;" />
+            <div id="admin-user-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+          `;
+
+          function renderUsersList(q = "") {
+            const listEl = document.getElementById("admin-user-list");
+            const filtered = users.filter(u => u.role === 'USER' && (u.username.toLowerCase().includes(q) || u.playerId.toLowerCase().includes(q)));
+            listEl.innerHTML = filtered.map(u => `
+              <div class="card" style="padding: 10px; margin-bottom: 0;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                  <div>
+                    <span style="font-weight: 700; font-size: 13px;">${u.username}</span>
+                    <span style="color: var(--text-muted); font-size: 11px;"> (${u.playerId})</span>
+                  </div>
+                  <span style="color: var(--gold); font-weight: 700; font-size: 13px;">🪙 ${formatNumber(u.coinBalance)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 11px; color: ${u.status === 'ACTIVE' ? 'var(--emerald)' : 'var(--loss-red)'}; font-weight: 600;">
+                    ${u.status}
+                  </span>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="btn btn-gold btn-sm btn-adj-coin" data-uid="${u.id}">Coins</button>
+                    <button class="btn ${u.status === 'ACTIVE' ? 'btn-danger' : 'btn-emerald'} btn-sm btn-toggle-susp" data-uid="${u.id}">
+                      ${u.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `).join('');
+
+            listEl.querySelectorAll(".btn-adj-coin").forEach(b => {
+              b.onclick = () => {
+                const uid = parseInt(b.getAttribute("data-uid"));
+                const target = users.find(x => x.id === uid);
+                showAdminAdjustCoinsDialog(target);
+              };
+            });
+
+            listEl.querySelectorAll(".btn-toggle-susp").forEach(b => {
+              b.onclick = () => {
+                const uid = parseInt(b.getAttribute("data-uid"));
+                const target = users.find(x => x.id === uid);
+                target.status = target.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE";
+                setStorage("users", users);
+
+                audit.unshift({
+                  logId: "LOG-" + Math.random().toString(36).substring(2, 8).toUpperCase(),
+                  adminId: adminSession.username,
+                  action: "STATUS_CHANGE",
+                  targetUserId: target.username + " (" + target.playerId + ")",
+                  reason: "Admin updated status to " + target.status,
+                  createdAt: Date.now()
+                });
+                setStorage("audit_logs", audit);
+
+                showToast("User status updated");
+                renderUsersList(q);
+              };
+            });
+          }
+
+          document.getElementById("admin-user-search").oninput = (e) => {
+            renderUsersList(e.target.value.toLowerCase());
+          };
+
+          renderUsersList();
+        } else if (activeTab === 2) {
+          body.innerHTML = `
+            <div class="card">
+              <h4 style="margin-bottom: 12px; color: var(--gold);">Global Parameters</h4>
+              <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Allowed Entries (CSV):</p>
+              <input type="text" id="cfg-entries" class="input-field" value="${config.allowedEntries.join(',')}" />
+              <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Durations (CSV):</p>
+              <input type="text" id="cfg-durations" class="input-field" value="${config.durations.join(',')}" />
+              <button id="btn-save-cfg" class="btn btn-gold btn-block">Save Configuration</button>
+            </div>
+          `;
+
+          document.getElementById("btn-save-cfg").onclick = () => {
+            config.allowedEntries = document.getElementById("cfg-entries").value.split(",").map(x => parseInt(x.trim())).filter(Boolean);
+            config.durations = document.getElementById("cfg-durations").value.split(",").map(x => parseInt(x.trim())).filter(Boolean);
+            setStorage("config", config);
+            showToast("Game configuration saved");
+          };
+        } else if (activeTab === 3) {
+          body.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              ${audit.length === 0 ? '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No audit logs yet.</p>' : ''}
+              ${audit.map(l => `
+                <div class="card" style="padding: 10px; margin-bottom: 0;">
+                  <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 700;">
+                    <span style="color: var(--gold);">${l.action} by ${l.adminId}</span>
+                    <span style="color: var(--text-muted); font-size: 10px;">${new Date(l.createdAt).toLocaleTimeString()}</span>
+                  </div>
+                  <p style="font-size: 11px; color: var(--text-secondary);">Target: ${l.targetUserId}</p>
+                  <p style="font-size: 11px; color: var(--emerald);">${l.reason}</p>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }
+      }
+
+      renderContent();
+    }
+
+    function showAdminAdjustCoinsDialog(target) {
+      const modal = document.createElement("div");
+      modal.className = "modal-backdrop";
+      modal.innerHTML = `
+        <div class="modal-card">
+          <h3 class="gold-title" style="margin-bottom: 8px;">Adjust Coins: ${target.username}</h3>
+          <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 12px;">Current Balance: ${formatNumber(target.coinBalance)} Coins</p>
+          <input type="number" id="adj-amount" class="input-field" placeholder="Amount (e.g. 50000 or -20000)" />
+          <input type="text" id="adj-reason" class="input-field" placeholder="Mandatory Audit Reason" />
+          <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button id="adj-cancel" class="btn btn-dark">Cancel</button>
+            <button id="adj-confirm" class="btn btn-gold">Apply</button>
+          </div>
+        </div>
+      `;
+      document.getElementById("app-container").appendChild(modal);
+
+      modal.querySelector("#adj-cancel").onclick = () => modal.remove();
+      modal.querySelector("#adj-confirm").onclick = () => {
+        const amt = parseInt(modal.querySelector("#adj-amount").value);
+        const reason = modal.querySelector("#adj-reason").value.trim();
+        if (!amt || !reason) return showToast("Amount and reason required");
+
+        const users = getStorage("users", []);
+        const u = users.find(x => x.id === target.id);
+        const prev = u.coinBalance;
+        u.coinBalance = Math.max(0, u.coinBalance + amt);
+        setStorage("users", users);
+
+        // Transaction
+        const txns = getStorage("transactions", []);
+        txns.unshift({
+          transactionId: "TXN-" + Math.random().toString(36).substring(2, 8).toUpperCase(),
+          userId: u.id,
+          userPlayerId: u.playerId,
+          type: amt > 0 ? "ADMIN_BONUS" : "ADMIN_DEDUCTION",
+          amount: amt,
+          previousBalance: prev,
+          newBalance: u.coinBalance,
+          description: "Admin: " + reason,
+          createdAt: Date.now()
+        });
+        setStorage("transactions", txns);
+
+        // Audit log
+        const audit = getStorage("audit_logs", []);
+        audit.unshift({
+          logId: "LOG-" + Math.random().toString(36).substring(2, 8).toUpperCase(),
+          adminId: adminSession.username,
+          action: "COIN_ADJUSTMENT",
+          targetUserId: u.username + " (" + u.playerId + ")",
+          amount: amt,
+          reason: reason,
+          createdAt: Date.now()
+        });
+        setStorage("audit_logs", audit);
+
+        modal.remove();
+        showToast("Adjusted coins by " + formatNumber(amt));
+        renderAdminDashboard();
+      };
+    }
+
+    // Initialize application routing
+    renderRoute();
+  </script>
+</body>
+</html>

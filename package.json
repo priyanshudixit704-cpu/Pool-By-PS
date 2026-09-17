@@ -1,0 +1,11 @@
+{
+  "name": "eight-ball-pool",
+  "version": "1.0.0",
+  "private": true,
+  "description": "8 Ball Pool Multiplayer Game",
+  "main": "index.html",
+  "scripts": {
+    "build": "echo 'Vercel build complete'",
+    "start": "npx serve -s ."
+  }
+}
