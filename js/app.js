@@ -75,7 +75,7 @@ function renderRoute() {
   }
 
   // User is logged in
-  const navRoutes = ["/", "/play", "/leaderboard", "/history", "/profile"];
+  const navRoutes = ["/", "/play", "/leaderboard", "/history", "/profile", "/notifications"];
   const isNavRoute = navRoutes.includes(path);
   if (bottomBar) bottomBar.style.display = isNavRoute ? "flex" : "none";
 
@@ -109,6 +109,8 @@ function renderRoute() {
     renderHistoryView();
   } else if (path === "/profile") {
     renderProfileView();
+  } else if (path === "/notifications") {
+    renderNotificationsView();
   } else {
     navigateTo("/play", true);
   }
@@ -145,16 +147,16 @@ function renderAuthView(initialTab = 0) {
 
     <div class="card card-gold">
       <!-- LOGIN FORM -->
-      <form id="form-login" style="${initialTab === 0 ? '' : 'display: none;'}">
+      <form id="form-login" method="post" action="javascript:void(0);" autocomplete="on" style="${initialTab === 0 ? '' : 'display: none;'}">
         <label style="display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
           USERNAME OR PLAYER ID
         </label>
-        <input type="text" id="login-identifier" class="input-field" placeholder="e.g. Rahul or 8BP-104582" required />
+        <input type="text" id="login-identifier" name="username" class="input-field" placeholder="e.g. Rahul or 8BP-104582" autocomplete="username" required />
 
         <label style="display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
           PASSWORD
         </label>
-        <input type="password" id="login-password" class="input-field" placeholder="Enter password" required />
+        <input type="password" id="login-password" name="password" class="input-field" placeholder="Enter password" autocomplete="current-password" required />
 
         <div style="display: flex; justify-content: flex-end; margin-bottom: 14px;">
           <a href="#" id="link-forgot-pass" style="color: var(--gold); font-size: 11px; text-decoration: none;">Forgot Password?</a>
@@ -166,21 +168,21 @@ function renderAuthView(initialTab = 0) {
       </form>
 
       <!-- REGISTER FORM -->
-      <form id="form-register" style="${initialTab === 1 ? '' : 'display: none;'}">
+      <form id="form-register" method="post" action="javascript:void(0);" autocomplete="on" style="${initialTab === 1 ? '' : 'display: none;'}">
         <label style="display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
           USERNAME
         </label>
-        <input type="text" id="reg-username" class="input-field" placeholder="Choose a username" required />
+        <input type="text" id="reg-username" name="username" class="input-field" placeholder="Choose a username" autocomplete="username" required />
 
         <label style="display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
           EMAIL OR PHONE
         </label>
-        <input type="text" id="reg-contact" class="input-field" placeholder="For account recovery" required />
+        <input type="text" id="reg-contact" name="email" class="input-field" placeholder="For account recovery" autocomplete="email" required />
 
         <label style="display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
           PASSWORD
         </label>
-        <input type="password" id="reg-password" class="input-field" placeholder="Create strong password" required />
+        <input type="password" id="reg-password" name="password" class="input-field" placeholder="Create strong password" autocomplete="new-password" required />
 
         <p style="color: var(--gold); font-size: 12px; margin-bottom: 14px;">
           🎁 <strong>100,000 Virtual Coins</strong> bonus on registration!
@@ -191,23 +193,7 @@ function renderAuthView(initialTab = 0) {
         </button>
       </form>
     </div>
-
-    <!-- Discrete Admin Portal Gateway -->
-    <div style="text-align: center; margin-top: 24px;">
-      <a href="#" id="link-admin-portal" style="color: var(--text-muted); font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);">
-        <span>🛡️</span> <span>Admin Management Portal</span>
-      </a>
-    </div>
   `;
-
-  // Admin portal link binding
-  const adminLink = document.getElementById("link-admin-portal");
-  if (adminLink) {
-    adminLink.onclick = (e) => {
-      e.preventDefault();
-      navigateTo("/admin/login");
-    };
-  }
 
   // Tab switching
   const tabLogin = document.getElementById("tab-login");
@@ -244,7 +230,7 @@ function renderAuthView(initialTab = 0) {
     const users = getStorage("users", []);
     const user = users.find(u => 
       (u.username.toLowerCase() === ident || u.playerId.toLowerCase() === ident) && 
-      u.password === pass
+      verifyPassword(pass, u.password)
     );
 
     if (!user) {
@@ -289,7 +275,7 @@ function renderAuthView(initialTab = 0) {
       id: Date.now(),
       playerId: playerId,
       username: username,
-      password: pass,
+      password: hashPassword(pass),
       emailOrPhone: contact,
       avatar: "avatar_" + ((users.length % 6) + 1),
       coinBalance: 100000, // 100,000 starting coins
@@ -493,9 +479,9 @@ function renderHomeView() {
         </div>
       </div>
 
-      <!-- PLAY NOW Button -->
+      <!-- FIND MATCH Button (Requirement 10 & 19) -->
       <button id="btn-play-now" class="btn btn-gold btn-block" style="height: 48px; font-size: 15px; font-weight: 800; box-shadow: 0 4px 16px rgba(255,213,79,0.35);">
-        PLAY NOW (${formatNumber(selectedEntry)} COINS)
+        ⚡ FIND MATCH (${formatNumber(selectedEntry)} COINS)
       </button>
     </div>
 
@@ -519,7 +505,7 @@ function renderHomeView() {
     <!-- Quick Room Options -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px;">
       <button id="btn-create-room" class="btn btn-dark" style="font-size: 12px; padding: 10px 0;">
-        ➕ Create Room Code
+        ➕ Create Private Room
       </button>
       <button id="btn-join-room" class="btn btn-dark" style="font-size: 12px; padding: 10px 0;">
         🔑 Join with Code
@@ -620,14 +606,14 @@ function renderHomeView() {
     };
   });
 
-  // Play Now
+  // Find Match (Requirement 10 & 19)
   document.getElementById("btn-play-now").onclick = () => {
     if (currentUser.coinBalance < selectedEntry) {
       showToast("Insufficient coins! Required: " + formatNumber(selectedEntry));
       showRequestCoinsDialog();
       return;
     }
-    showConfirmEntryDialog(selectedEntry, selectedMode, selectedDuration);
+    startMatchmakingFlow(selectedMode, selectedEntry, selectedDuration);
   };
 
   // Room Creation / Join
@@ -811,6 +797,120 @@ function showConfirmEntryDialog(entry, mode, duration) {
     modal.remove();
     createNewRoom(mode, entry, duration);
   };
+}
+
+// ==========================================
+// FULL MATCHMAKING & COUNTDOWN FLOW (Requirement 19)
+// ==========================================
+function startMatchmakingFlow(mode, entry, duration) {
+  const users = getStorage("users", []);
+  const u = users.find(x => x.id === currentUser.id);
+  if (!u || u.coinBalance < entry) {
+    showToast("Insufficient coin balance for this match");
+    showRequestCoinsDialog();
+    return;
+  }
+
+  // Deduct entry coins atomically
+  const prevBal = u.coinBalance;
+  u.coinBalance -= entry;
+  setStorage("users", users);
+  currentUser.coinBalance = u.coinBalance;
+  setStorage("current_user", currentUser);
+
+  const roomId = "ROOM #" + Math.random().toString(36).substring(2, 8).toUpperCase();
+  recordTransaction(u.id, u.playerId, "MATCH_ENTRY", entry, prevBal, u.coinBalance, `Entry fee for ${roomId}`);
+
+  // Create room in database
+  const allRooms = getStorage("rooms", []);
+  allRooms.unshift({
+    roomId: roomId,
+    hostPlayerId: currentUser.playerId,
+    hostUsername: currentUser.username,
+    mode: mode,
+    entryAmount: entry,
+    durationMinutes: duration,
+    status: "WAITING",
+    createdAt: Date.now()
+  });
+  setStorage("rooms", allRooms);
+
+  recordUserActivity(currentUser.id, currentUser.playerId, currentUser.username, "CREATE_ROOM", roomId, `Created ${mode} room with entry ${formatNumber(entry)} coins`);
+
+  const opponentNames = ["Alex (Pool Pro)", "Vikram (Master)", "Sam (Shark)", "Leo (Ace)", "Elena (Cueist)", "Marcus (Trickshot)"];
+  const opponentName = opponentNames[Math.floor(Math.random() * opponentNames.length)];
+  const opponentId = "8BP-" + Math.floor(100000 + Math.random() * 900000);
+
+  currentRoom = {
+    roomId: roomId,
+    hostPlayerId: currentUser.playerId,
+    hostUsername: currentUser.username,
+    mode: mode,
+    entryAmount: entry,
+    durationMinutes: duration,
+    players: mode === "2v2" ? [
+      { id: currentUser.playerId, name: currentUser.username, avatar: currentUser.avatar, team: 1 },
+      { id: "8BP-BOT-A2", name: "Alex (P2)", avatar: "avatar_2", team: 1 },
+      { id: opponentId, name: opponentName, avatar: "avatar_3", team: 2 },
+      { id: "8BP-BOT-B2", name: "Sam (P4)", avatar: "avatar_4", team: 2 }
+    ] : [
+      { id: currentUser.playerId, name: currentUser.username, avatar: currentUser.avatar, team: 1 },
+      { id: opponentId, name: opponentName, avatar: "avatar_5", team: 2 }
+    ]
+  };
+
+  // Matchmaking & 3-2-1 Countdown Modal
+  const modal = document.createElement("div");
+  modal.className = "modal-backdrop";
+  modal.innerHTML = `
+    <div class="modal-card" style="text-align: center; border: 2px solid var(--gold); max-width: 360px;">
+      <div id="mm-searching" style="padding: 16px 0;">
+        <div class="splash-spinner" style="margin: 0 auto 16px; width: 40px; height: 40px; border-width: 4px;"></div>
+        <h3 class="gold-title" style="font-size: 18px; margin-bottom: 6px;">FINDING OPPONENT...</h3>
+        <p style="color: var(--text-secondary); font-size: 12px;">Matching with online player in ${mode} Arena</p>
+        <p style="color: var(--gold); font-size: 13px; font-weight: 700; margin-top: 8px;">🪙 ${formatNumber(entry)} Coins Entry</p>
+      </div>
+
+      <div id="mm-found" style="display: none; padding: 12px 0;">
+        <div style="font-size: 36px; margin-bottom: 8px;">🎯</div>
+        <h3 class="gold-title" style="font-size: 18px; margin-bottom: 4px;">OPPONENT FOUND!</h3>
+        <p style="font-size: 15px; font-weight: 800; color: #fff; margin-bottom: 2px;">${opponentName}</p>
+        <p style="color: var(--text-secondary); font-size: 11px; margin-bottom: 16px;">${opponentId} • ${roomId}</p>
+        
+        <div id="mm-countdown" style="font-size: 48px; font-weight: 900; color: var(--gold); font-variant-numeric: tabular-nums;">
+          3
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById("app-container").appendChild(modal);
+
+  setTimeout(() => {
+    const searching = modal.querySelector("#mm-searching");
+    const found = modal.querySelector("#mm-found");
+    const countdown = modal.querySelector("#mm-countdown");
+    if (!searching || !found) return;
+
+    searching.style.display = "none";
+    found.style.display = "block";
+
+    let count = 3;
+    const timer = setInterval(() => {
+      count--;
+      if (count === 2) {
+        countdown.textContent = "2";
+      } else if (count === 1) {
+        countdown.textContent = "1";
+      } else if (count === 0) {
+        countdown.textContent = "BREAK! 🎱";
+        clearInterval(timer);
+        setTimeout(() => {
+          modal.remove();
+          navigateTo("/game");
+        }, 500);
+      }
+    }, 700);
+  }, 1000);
 }
 
 function createNewRoom(mode, entry, duration, presetRoomId) {
@@ -1149,20 +1249,12 @@ function renderProfileView() {
       🪙 REQUEST COINS
     </button>
 
-    <button id="btn-prof-admin-link" class="btn btn-dark btn-block" style="margin-bottom: 10px; height: 42px; font-size: 13px; color: var(--gold); border: 1px solid var(--bg-card-border);">
-      🛡️ Admin Management System
-    </button>
-
     <button id="btn-user-logout" class="btn btn-dark btn-block" style="color: var(--loss-red); height: 46px; font-size: 14px;">
       Logout ⎋
     </button>
   `;
 
   document.getElementById("btn-prof-req-coins").onclick = () => showRequestCoinsDialog();
-
-  document.getElementById("btn-prof-admin-link").onclick = () => {
-    navigateTo(adminSession ? "/admin/dashboard" : "/admin/login");
-  };
 
   document.getElementById("btn-user-logout").onclick = () => {
     recordUserActivity(currentUser.id, currentUser.playerId, currentUser.username, "USER_LOGOUT", "", "User logged out");
@@ -1225,6 +1317,58 @@ function showNotificationsModal() {
     modal.remove();
     renderHomeView();
   };
+}
+
+// ==========================================
+// DEDICATED NOTIFICATIONS / ALERTS VIEW
+// ==========================================
+function renderNotificationsView() {
+  const container = document.getElementById("main-view");
+  container.className = "view-content";
+
+  const notifs = getUserNotifications(currentUser.id, currentUser.playerId);
+  markAllNotificationsRead(currentUser.id, currentUser.playerId);
+
+  container.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 20px;">🔔</span>
+        <h2 class="gold-title" style="font-size: 18px; margin: 0;">ALERTS & NOTIFICATIONS</h2>
+      </div>
+      <button id="btn-clear-notifs" class="btn btn-dark btn-sm" style="font-size: 11px; padding: 4px 8px;">
+        Mark All Read
+      </button>
+    </div>
+
+    ${notifs.length === 0 ? `
+      <div class="card" style="text-align: center; padding: 40px 16px;">
+        <p style="font-size: 36px; margin-bottom: 8px;">📭</p>
+        <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 4px;">All caught up!</h4>
+        <p style="color: var(--text-secondary); font-size: 12px;">You will receive match alerts, coin updates, and invites here.</p>
+      </div>
+    ` : `
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        ${notifs.map(n => `
+          <div class="card" style="padding: 12px; border-left: 3px solid var(--gold);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <strong style="color: var(--gold); font-size: 13px;">${n.title || 'Notification'}</strong>
+              <span style="font-size: 10px; color: var(--text-muted);">${new Date(n.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 12px; margin: 0; line-height: 1.4;">${n.message}</p>
+          </div>
+        `).join('')}
+      </div>
+    `}
+  `;
+
+  const clearBtn = document.getElementById("btn-clear-notifs");
+  if (clearBtn) {
+    clearBtn.onclick = () => {
+      markAllNotificationsRead(currentUser.id, currentUser.playerId);
+      showToast("All notifications marked as read");
+      renderNotificationsView();
+    };
+  }
 }
 
 // Kick off initialization

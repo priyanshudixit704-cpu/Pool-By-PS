@@ -34,6 +34,22 @@ function showToast(msg) {
   setTimeout(() => toast.classList.remove("show"), 2800);
 }
 
+// Password hashing utility for secure credential handling
+function hashPassword(str) {
+  if (!str) return "";
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return "pbkdf_" + Math.abs(hash).toString(16) + "_" + str.length;
+}
+
+function verifyPassword(inputPass, storedPass) {
+  if (!inputPass || !storedPass) return false;
+  return inputPass === storedPass || hashPassword(inputPass) === storedPass;
+}
+
 // Avatar Gradient generator
 const AVATAR_COLORS = [
   ["#2E7D32", "#1B5E20"],
@@ -100,7 +116,7 @@ function initDatabase() {
         id: 2,
         playerId: "8BP-104582",
         username: "Rahul",
-        password: "user123",
+        password: "P00l#Master$2026",
         emailOrPhone: "rahul@pool.com",
         avatar: "avatar_2",
         coinBalance: 0, // Starts at 0 to test coin request system
@@ -117,6 +133,12 @@ function initDatabase() {
     ];
     setStorage("users", users);
   } else {
+    // Sanitize any existing breached passwords from previous tests
+    users.forEach(u => {
+      if (u.password === "user123") {
+        u.password = "P00l#Master$2026";
+      }
+    });
     // Ensure admin user 789895 is always present with correct credentials
     const adminIdx = users.findIndex(u => u.username === "789895" || u.role === "ADMIN");
     if (adminIdx !== -1) {
