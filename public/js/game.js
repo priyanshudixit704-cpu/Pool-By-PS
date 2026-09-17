@@ -107,6 +107,33 @@ function initGameEngine() {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
 
+  // Register in active_games for Admin Live Games monitoring
+  const activeGames = getStorage("active_games", []);
+  const existingIdx = activeGames.findIndex(g => g.roomId === currentRoom.roomId);
+  const liveGameObj = {
+    roomId: currentRoom.roomId,
+    gameMode: currentRoom.mode,
+    entryAmount: currentRoom.entryAmount,
+    players: currentRoom.players,
+    currentTurn: 0,
+    status: "PLAYING",
+    startedAt: Date.now()
+  };
+  if (existingIdx >= 0) {
+    activeGames[existingIdx] = liveGameObj;
+  } else {
+    activeGames.push(liveGameObj);
+  }
+  setStorage("active_games", activeGames);
+
+  // Update room status in rooms table
+  const allRooms = getStorage("rooms", []);
+  const rIdx = allRooms.findIndex(r => r.roomId === currentRoom.roomId);
+  if (rIdx >= 0) {
+    allRooms[rIdx].status = "PLAYING";
+    setStorage("rooms", allRooms);
+  }
+
   const width = 340;
   const height = 540;
   const cushion = 24;
@@ -721,6 +748,40 @@ function initGameEngine() {
       currentUser.matchesLost = u.matchesLost;
       setStorage("current_user", currentUser);
     }
+
+    // Clean up active_games and room status
+    const activeGames = getStorage("active_games", []);
+    const filteredActive = activeGames.filter(g => g.roomId !== currentRoom.roomId);
+    setStorage("active_games", filteredActive);
+
+    const allRooms = getStorage("rooms", []);
+    const rIdx = allRooms.findIndex(r => r.roomId === currentRoom.roomId);
+    if (rIdx >= 0) {
+      allRooms[rIdx].status = "FINISHED";
+      allRooms[rIdx].endedAt = Date.now();
+      setStorage("rooms", allRooms);
+    }
+
+    // In-app Notification for Match Result (Requirement 18)
+    createNotification(
+      currentUser.id,
+      currentUser.playerId,
+      isUserWinner ? "MATCH_WON" : "MATCH_LOST",
+      isUserWinner ? "Match Victory! 🏆" : "Match Defeat",
+      isUserWinner
+        ? `You won ${formatNumber(pot)} coins in ${currentRoom.roomId}!`
+        : `You lost ${formatNumber(currentRoom.entryAmount)} coins in ${currentRoom.roomId}.`
+    );
+
+    // User Activity Logging (Requirement 6 & 22)
+    recordUserActivity(
+      currentUser.id,
+      currentUser.playerId,
+      currentUser.username,
+      isUserWinner ? "MATCH_WON" : "MATCH_LOST",
+      currentRoom.roomId,
+      isUserWinner ? `Won ${formatNumber(pot)} coins (${reason})` : `Lost match (${reason})`
+    );
 
     // Show Match Result Dialog (Requirement 13)
     const modal = document.createElement("div");

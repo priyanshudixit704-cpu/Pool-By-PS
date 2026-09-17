@@ -23,10 +23,46 @@ function renderRoute() {
   // Admin route check
   if (path === "/admin" || path.startsWith("/admin/")) {
     if (bottomBar) bottomBar.style.display = "none";
-    if (adminSession) {
+    if (path === "/admin/login") {
+      if (adminSession) {
+        navigateTo("/admin/dashboard", true);
+      } else {
+        renderAdminLogin();
+      }
+      return;
+    }
+
+    if (!adminSession) {
+      navigateTo("/admin/login", true);
+      return;
+    }
+
+    if (path === "/admin" || path === "/admin/dashboard") {
       renderAdminDashboard();
+    } else if (path === "/admin/users") {
+      renderAdminUsers();
+    } else if (path === "/admin/live-games") {
+      renderAdminLiveGames();
+    } else if (path === "/admin/rooms") {
+      renderAdminRooms();
+    } else if (path === "/admin/coin-requests") {
+      renderAdminCoinRequests();
+    } else if (path === "/admin/transactions") {
+      renderAdminTransactions();
+    } else if (path === "/admin/matches") {
+      renderAdminMatches();
+    } else if (path === "/admin/invitations") {
+      renderAdminInvitations();
+    } else if (path === "/admin/leaderboard") {
+      renderAdminLeaderboard();
+    } else if (path === "/admin/reports") {
+      renderAdminReports();
+    } else if (path === "/admin/settings") {
+      renderAdminSettings();
+    } else if (path === "/admin/audit-logs") {
+      renderAdminAuditLogs();
     } else {
-      renderAdminLogin();
+      renderAdminDashboard();
     }
     return;
   }
@@ -155,7 +191,23 @@ function renderAuthView(initialTab = 0) {
         </button>
       </form>
     </div>
+
+    <!-- Discrete Admin Portal Gateway -->
+    <div style="text-align: center; margin-top: 24px;">
+      <a href="#" id="link-admin-portal" style="color: var(--text-muted); font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);">
+        <span>🛡️</span> <span>Admin Management Portal</span>
+      </a>
+    </div>
   `;
+
+  // Admin portal link binding
+  const adminLink = document.getElementById("link-admin-portal");
+  if (adminLink) {
+    adminLink.onclick = (e) => {
+      e.preventDefault();
+      navigateTo("/admin/login");
+    };
+  }
 
   // Tab switching
   const tabLogin = document.getElementById("tab-login");
@@ -207,6 +259,8 @@ function renderAuthView(initialTab = 0) {
     setStorage("users", users);
     currentUser = user;
     setStorage("current_user", currentUser);
+
+    recordUserActivity(user.id, user.playerId, user.username, "USER_LOGIN", "", "User logged into game");
 
     showToast(`Welcome back, ${user.username}!`);
     navigateTo("/play");
@@ -263,6 +317,8 @@ function renderAuthView(initialTab = 0) {
       "New player registration bonus"
     );
 
+    recordUserActivity(newUser.id, newUser.playerId, newUser.username, "USER_REGISTER", "", "Created new player profile");
+
     currentUser = newUser;
     setStorage("current_user", currentUser);
 
@@ -291,6 +347,18 @@ function renderHomeView() {
     setStorage("current_user", currentUser);
   }
 
+  const unreadNotifs = getUserNotifications(currentUser.id, currentUser.playerId).filter(n => !n.read).length;
+
+  const gameConfig = getStorage("game_settings", {
+    mode1v1: true,
+    mode2v2: true,
+    durations: [1, 2, 5],
+    entryAmounts: [1000, 2000, 5000, 10000],
+    customEntryEnabled: true,
+    customMin: 500,
+    customMax: 500000
+  });
+
   const invites = getStorage("invitations", []).filter(i => 
     i.receiverPlayerId === currentUser.playerId && i.status === "PENDING"
   );
@@ -315,12 +383,24 @@ function renderHomeView() {
           </div>
         </div>
 
-        <!-- Virtual Coins Badge -->
-        <div style="text-align: right;">
-          <span style="font-size: 10px; color: var(--text-secondary); font-weight: 700; text-transform: uppercase;">Game Balance</span>
-          <div style="display: flex; align-items: center; gap: 4px; justify-content: flex-end; margin-top: 2px;">
-            <span style="font-size: 16px;">🪙</span>
-            <span id="dash-coins" style="color: var(--gold); font-weight: 800; font-size: 16px;">${formatNumber(currentUser.coinBalance)}</span>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <!-- Notification Bell -->
+          <button id="btn-user-notifications" style="position: relative; background: #132a20; border: 1.5px solid var(--bg-card-border); border-radius: 12px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--gold); font-size: 16px;" title="Notifications">
+            🔔
+            ${unreadNotifs > 0 ? `
+              <span style="position: absolute; top: -4px; right: -4px; background: var(--loss-red); color: white; font-size: 9px; font-weight: 800; border-radius: 10px; padding: 1px 5px; border: 1.5px solid #06150f;">
+                ${unreadNotifs}
+              </span>
+            ` : ''}
+          </button>
+
+          <!-- Virtual Coins Badge -->
+          <div style="text-align: right;">
+            <span style="font-size: 10px; color: var(--text-secondary); font-weight: 700; text-transform: uppercase;">Game Balance</span>
+            <div style="display: flex; align-items: center; gap: 4px; justify-content: flex-end; margin-top: 2px;">
+              <span style="font-size: 16px;">🪙</span>
+              <span id="dash-coins" style="color: var(--gold); font-weight: 800; font-size: 16px;">${formatNumber(currentUser.coinBalance)}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -373,23 +453,33 @@ function renderHomeView() {
       <div style="margin-bottom: 12px;">
         <label style="font-size: 11px; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Game Mode</label>
         <div style="display: flex; gap: 8px; margin-top: 6px;">
-          <button id="mode-1v1" class="btn ${selectedMode === '1v1' ? 'btn-gold' : 'btn-dark'}" style="flex: 1; padding: 8px 0; font-size: 12px; font-weight: 800;">
-            1 VS 1 SOLO
-          </button>
-          <button id="mode-2v2" class="btn ${selectedMode === '2v2' ? 'btn-gold' : 'btn-dark'}" style="flex: 1; padding: 8px 0; font-size: 12px; font-weight: 800;">
-            2 VS 2 TEAMS
-          </button>
+          ${gameConfig.mode1v1 !== false ? `
+            <button id="mode-1v1" class="btn ${selectedMode === '1v1' ? 'btn-gold' : 'btn-dark'}" style="flex: 1; padding: 8px 0; font-size: 12px; font-weight: 800;">
+              1 VS 1 SOLO
+            </button>
+          ` : ''}
+          ${gameConfig.mode2v2 !== false ? `
+            <button id="mode-2v2" class="btn ${selectedMode === '2v2' ? 'btn-gold' : 'btn-dark'}" style="flex: 1; padding: 8px 0; font-size: 12px; font-weight: 800;">
+              2 VS 2 TEAMS
+            </button>
+          ` : ''}
         </div>
       </div>
 
       <!-- Entry Amount Tiers -->
       <div style="margin-bottom: 12px;">
         <label style="font-size: 11px; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Entry Coins</label>
-        <div id="entry-chips" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px;">
-          <div class="chip ${!isCustom && selectedEntry === 1000 ? 'active' : ''}" data-entry="1000">1K</div>
-          <div class="chip ${!isCustom && selectedEntry === 2000 ? 'active' : ''}" data-entry="2000">2K</div>
-          <div class="chip ${!isCustom && selectedEntry === 5000 ? 'active' : ''}" data-entry="5000">5K</div>
-          <div class="chip ${!isCustom && selectedEntry === 10000 ? 'active' : ''}" data-entry="10000">10K</div>
+        <div id="entry-chips" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;">
+          ${(gameConfig.entryAmounts || [1000, 2000, 5000, 10000]).map(amt => `
+            <div class="chip ${!isCustom && selectedEntry === amt ? 'active' : ''}" data-entry="${amt}" style="flex: 1; min-width: 60px; text-align: center; justify-content: center;">
+              ${formatNumber(amt)}
+            </div>
+          `).join('')}
+          ${gameConfig.customEntryEnabled !== false ? `
+            <div class="chip ${isCustom ? 'active' : ''}" id="chip-custom-entry" style="flex: 1; min-width: 70px; text-align: center; justify-content: center;">
+              ${isCustom ? formatNumber(selectedEntry) : 'Custom...'}
+            </div>
+          ` : ''}
         </div>
       </div>
 
@@ -397,9 +487,9 @@ function renderHomeView() {
       <div style="margin-bottom: 16px;">
         <label style="font-size: 11px; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">Match Time Limit</label>
         <div id="duration-chips" style="display: flex; gap: 8px; margin-top: 6px;">
-          <div class="chip ${selectedDuration === 1 ? 'active' : ''}" data-dur="1" style="flex: 1;">1 Min</div>
-          <div class="chip ${selectedDuration === 2 ? 'active' : ''}" data-dur="2" style="flex: 1;">2 Min</div>
-          <div class="chip ${selectedDuration === 5 ? 'active' : ''}" data-dur="5" style="flex: 1;">5 Min</div>
+          ${(gameConfig.durations || [1, 2, 5]).map(dur => `
+            <div class="chip ${selectedDuration === dur ? 'active' : ''}" data-dur="${dur}" style="flex: 1; text-align: center; justify-content: center;">${dur} Min</div>
+          `).join('')}
         </div>
       </div>
 
@@ -446,6 +536,11 @@ function renderHomeView() {
     </div>
   `;
 
+  // Notification Bell
+  document.getElementById("btn-user-notifications")?.addEventListener("click", () => {
+    showNotificationsModal();
+  });
+
   // Copy Player ID
   document.getElementById("btn-copy-id").onclick = () => {
     navigator.clipboard.writeText(currentUser.playerId).then(() => {
@@ -467,17 +562,23 @@ function renderHomeView() {
   document.getElementById("link-all-matches").onclick = (e) => { e.preventDefault(); navigateTo("/history"); };
 
   // Mode Toggles
-  document.getElementById("mode-1v1").onclick = () => {
-    selectedMode = "1v1";
-    renderHomeView();
-  };
-  document.getElementById("mode-2v2").onclick = () => {
-    selectedMode = "2v2";
-    renderHomeView();
-  };
+  const btnMode1v1 = document.getElementById("mode-1v1");
+  if (btnMode1v1) {
+    btnMode1v1.onclick = () => {
+      selectedMode = "1v1";
+      renderHomeView();
+    };
+  }
+  const btnMode2v2 = document.getElementById("mode-2v2");
+  if (btnMode2v2) {
+    btnMode2v2.onclick = () => {
+      selectedMode = "2v2";
+      renderHomeView();
+    };
+  }
 
   // Entry Chips
-  document.querySelectorAll("#entry-chips .chip").forEach(chip => {
+  document.querySelectorAll("#entry-chips .chip[data-entry]").forEach(chip => {
     chip.onclick = () => {
       isCustom = false;
       document.querySelectorAll("#entry-chips .chip").forEach(c => c.classList.remove("active"));
@@ -486,6 +587,29 @@ function renderHomeView() {
       document.getElementById("btn-play-now").textContent = `PLAY NOW (${formatNumber(selectedEntry)} COINS)`;
     };
   });
+
+  // Custom Entry Chip
+  const chipCustom = document.getElementById("chip-custom-entry");
+  if (chipCustom) {
+    chipCustom.onclick = () => {
+      const inputVal = prompt(`Enter custom entry amount (${gameConfig.customMin || 500} - ${formatNumber(gameConfig.customMax || 500000)} Coins):`, selectedEntry);
+      if (inputVal !== null) {
+        const num = parseInt(inputVal, 10);
+        const min = gameConfig.customMin || 500;
+        const max = gameConfig.customMax || 500000;
+        if (isNaN(num) || num < min || num > max) {
+          showToast(`Please enter an amount between ${formatNumber(min)} and ${formatNumber(max)} coins.`);
+          return;
+        }
+        isCustom = true;
+        selectedEntry = num;
+        document.querySelectorAll("#entry-chips .chip").forEach(c => c.classList.remove("active"));
+        chipCustom.classList.add("active");
+        chipCustom.textContent = formatNumber(num);
+        document.getElementById("btn-play-now").textContent = `PLAY NOW (${formatNumber(selectedEntry)} COINS)`;
+      }
+    };
+  }
 
   // Duration Chips
   document.querySelectorAll("#duration-chips .chip").forEach(chip => {
@@ -514,13 +638,25 @@ function renderHomeView() {
   if (invites.length > 0) {
     document.getElementById("btn-decline-invite").onclick = () => {
       invites[0].status = "DECLINED";
-      setStorage("invitations", getStorage("invitations", []));
+      const allInvs = getStorage("invitations", []);
+      const idx = allInvs.findIndex(i => i.invitationId === invites[0].invitationId);
+      if (idx >= 0) {
+        allInvs[idx].status = "DECLINED";
+        setStorage("invitations", allInvs);
+      }
+      recordUserActivity(currentUser.id, currentUser.playerId, currentUser.username, "DECLINE_INVITE", invites[0].roomId, `Declined challenge from ${invites[0].senderUsername}`);
       renderHomeView();
       showToast("Invitation declined");
     };
     document.getElementById("btn-accept-invite").onclick = () => {
       invites[0].status = "ACCEPTED";
-      setStorage("invitations", getStorage("invitations", []));
+      const allInvs = getStorage("invitations", []);
+      const idx = allInvs.findIndex(i => i.invitationId === invites[0].invitationId);
+      if (idx >= 0) {
+        allInvs[idx].status = "ACCEPTED";
+        setStorage("invitations", allInvs);
+      }
+      recordUserActivity(currentUser.id, currentUser.playerId, currentUser.username, "ACCEPT_INVITE", invites[0].roomId, `Accepted challenge from ${invites[0].senderUsername}`);
       createNewRoom(invites[0].mode, invites[0].entryAmount, invites[0].durationMinutes, invites[0].roomId);
     };
   }
@@ -639,6 +775,8 @@ function showRequestCoinsDialog() {
     allRequests.unshift(newReq);
     setStorage("coin_requests", allRequests);
 
+    recordUserActivity(currentUser.id, currentUser.playerId, currentUser.username, "COIN_REQUEST", newReq.requestId, `Requested ${formatNumber(amount)} coins`);
+
     modal.remove();
     showToast("Coin request sent to admin.");
     renderHomeView();
@@ -692,6 +830,25 @@ function createNewRoom(mode, entry, duration, presetRoomId) {
 
   const roomId = presetRoomId || "ROOM #" + Math.random().toString(36).substring(2, 8).toUpperCase();
   recordTransaction(u.id, u.playerId, "MATCH_ENTRY", entry, prevBal, u.coinBalance, `Entry fee for ${roomId}`);
+
+  // Save room to rooms table in database
+  const allRooms = getStorage("rooms", []);
+  const existingR = allRooms.find(r => r.roomId === roomId);
+  if (!existingR) {
+    allRooms.unshift({
+      roomId: roomId,
+      hostPlayerId: currentUser.playerId,
+      hostUsername: currentUser.username,
+      mode: mode,
+      entryAmount: entry,
+      durationMinutes: duration,
+      status: "WAITING",
+      createdAt: Date.now()
+    });
+    setStorage("rooms", allRooms);
+  }
+
+  recordUserActivity(currentUser.id, currentUser.playerId, currentUser.username, "CREATE_ROOM", roomId, `Created ${mode} room with entry ${formatNumber(entry)} coins`);
 
   currentRoom = {
     roomId: roomId,
@@ -814,8 +971,9 @@ function showInvitePlayerDialog() {
   modal.querySelector("#inv-send-btn").onclick = () => {
     if (!targetUser) return;
     const invites = getStorage("invitations", []);
+    const invId = "INV-" + Math.random().toString(36).substring(2, 8).toUpperCase();
     invites.push({
-      invitationId: "INV-" + Math.random().toString(36).substring(2, 8).toUpperCase(),
+      invitationId: invId,
       senderPlayerId: currentUser.playerId,
       senderUsername: currentUser.username,
       receiverPlayerId: targetUser.playerId,
@@ -827,6 +985,10 @@ function showInvitePlayerDialog() {
       createdAt: Date.now()
     });
     setStorage("invitations", invites);
+
+    recordUserActivity(currentUser.id, currentUser.playerId, currentUser.username, "SEND_INVITE", targetUser.playerId, `Challenged ${targetUser.username}`);
+    createNotification(targetUser.id, targetUser.playerId, "INVITATION", "Match Challenge! 🎱", `${currentUser.username} challenged you to a ${selectedMode} match (${formatNumber(selectedEntry)} coins)!`);
+
     modal.remove();
     showToast("Invitation sent to " + targetUser.username + "!");
   };
@@ -987,6 +1149,10 @@ function renderProfileView() {
       🪙 REQUEST COINS
     </button>
 
+    <button id="btn-prof-admin-link" class="btn btn-dark btn-block" style="margin-bottom: 10px; height: 42px; font-size: 13px; color: var(--gold); border: 1px solid var(--bg-card-border);">
+      🛡️ Admin Management System
+    </button>
+
     <button id="btn-user-logout" class="btn btn-dark btn-block" style="color: var(--loss-red); height: 46px; font-size: 14px;">
       Logout ⎋
     </button>
@@ -994,7 +1160,12 @@ function renderProfileView() {
 
   document.getElementById("btn-prof-req-coins").onclick = () => showRequestCoinsDialog();
 
+  document.getElementById("btn-prof-admin-link").onclick = () => {
+    navigateTo(adminSession ? "/admin/dashboard" : "/admin/login");
+  };
+
   document.getElementById("btn-user-logout").onclick = () => {
+    recordUserActivity(currentUser.id, currentUser.playerId, currentUser.username, "USER_LOGOUT", "", "User logged out");
     const users = getStorage("users", []);
     const u = users.find(x => x.id === currentUser.id);
     if (u) {
@@ -1005,6 +1176,54 @@ function renderProfileView() {
     setStorage("current_user", null);
     showToast("Logged out successfully");
     navigateTo("/login");
+  };
+}
+
+// ==========================================
+// IN-APP NOTIFICATIONS MODAL (Requirement 18)
+// ==========================================
+function showNotificationsModal() {
+  const notifs = getUserNotifications(currentUser.id, currentUser.playerId);
+  markAllNotificationsRead(currentUser.id, currentUser.playerId);
+
+  const modal = document.createElement("div");
+  modal.className = "modal-backdrop";
+  modal.innerHTML = `
+    <div class="modal-card" style="max-height: 85vh; display: flex; flex-direction: column;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--bg-card-border); padding-bottom: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 18px;">🔔</span>
+          <h3 class="gold-title" style="font-size: 16px; margin: 0;">NOTIFICATIONS</h3>
+        </div>
+        <button id="notif-close-btn" style="background: none; border: none; color: var(--text-secondary); font-size: 18px; cursor: pointer;">✕</button>
+      </div>
+
+      <div style="flex: 1; overflow-y: auto; max-height: 60vh;">
+        ${notifs.length === 0 ? `
+          <div style="text-align: center; padding: 32px 16px; color: var(--text-muted);">
+            <p style="font-size: 24px; margin-bottom: 6px;">📭</p>
+            <p style="font-size: 13px;">No notifications yet.</p>
+          </div>
+        ` : `
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            ${notifs.map(n => `
+              <div style="background: #091711; border: 1px solid rgba(255,255,255,0.08); padding: 10px 12px; border-radius: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <strong style="color: var(--gold); font-size: 12px;">${n.title || 'Notification'}</strong>
+                  <span style="font-size: 9px; color: var(--text-muted);">${new Date(n.createdAt).toLocaleTimeString()}</span>
+                </div>
+                <p style="color: var(--text-secondary); font-size: 11px; margin: 0; line-height: 1.4;">${n.message}</p>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+  document.getElementById("app-container").appendChild(modal);
+  modal.querySelector("#notif-close-btn").onclick = () => {
+    modal.remove();
+    renderHomeView();
   };
 }
 
